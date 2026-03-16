@@ -1,7 +1,8 @@
-import { Search, BarChart3, Download, Plus, X } from "lucide-react";
+import { Search, BarChart3, Download, Plus, X, Send } from "lucide-react";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { NavLink } from "@/components/NavLink";
 
 interface CnaeItem {
   code: string;
@@ -10,15 +11,26 @@ interface CnaeItem {
 }
 
 interface SidebarNavProps {
-  activeFilter: string[];
-  onToggleCnae: (code: string) => void;
-  cnaeCodes: CnaeItem[];
-  onAddCnae: (code: string, name: string) => void;
-  onRemoveCnae: (code: string) => void;
-  totalLeads: number;
+  activeFilter?: string[];
+  onToggleCnae?: (code: string) => void;
+  cnaeCodes?: CnaeItem[];
+  onAddCnae?: (code: string, name: string) => void;
+  onRemoveCnae?: (code: string) => void;
+  totalLeads?: number;
+  onExportCsv?: () => void;
+  onExportPdf?: () => void;
 }
 
-export const AppSidebar = ({ activeFilter, onToggleCnae, cnaeCodes, onAddCnae, onRemoveCnae, totalLeads }: SidebarNavProps) => {
+export const AppSidebar = ({
+  activeFilter = [],
+  onToggleCnae = () => {},
+  cnaeCodes = [],
+  onAddCnae = () => {},
+  onRemoveCnae = () => {},
+  totalLeads = 0,
+  onExportCsv = () => {},
+  onExportPdf = () => {},
+}: SidebarNavProps) => {
   const [newCode, setNewCode] = useState("");
   const [newName, setNewName] = useState("");
   const [showAdd, setShowAdd] = useState(false);
@@ -37,13 +49,39 @@ export const AppSidebar = ({ activeFilter, onToggleCnae, cnaeCodes, onAddCnae, o
     <aside className="w-64 bg-navy text-navy-foreground flex flex-col h-screen fixed left-0 top-0 z-30">
       {/* Logo */}
       <div className="px-5 py-5 border-b border-sidebar-border">
-        <div className="flex items-center gap-2">
-          <div className="h-7 w-7 rounded bg-primary flex items-center justify-center flex-shrink-0">
-            <span className="text-xs font-bold text-primary-foreground tracking-tight">RF</span>
-          </div>
-          <span className="text-lg font-semibold tracking-tight">RadiFlex</span>
+        <div
+          className="inline-flex items-center px-3 py-2 rounded-xl"
+          style={{ background: "#5B2ECC" }}
+        >
+          <span
+            className="text-white tracking-tight"
+            style={{ fontWeight: 800, fontSize: "16px", letterSpacing: "-0.5px" }}
+          >
+            ⌘ radflex.
+          </span>
         </div>
-        <p className="text-xs text-sidebar-muted mt-1">Prospecção por CNAE</p>
+        <p className="text-xs text-sidebar-muted mt-2">Prospecção por CNAE</p>
+      </div>
+
+      {/* Navigation */}
+      <div className="px-3 py-3 border-b border-sidebar-border space-y-1">
+        <NavLink
+          to="/"
+          end
+          className="flex items-center gap-2 px-3 py-2 rounded text-sm text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+          activeClassName="bg-sidebar-primary text-sidebar-primary-foreground"
+        >
+          <Search className="h-4 w-4" />
+          Prospecção
+        </NavLink>
+        <NavLink
+          to="/disparos"
+          className="flex items-center gap-2 px-3 py-2 rounded text-sm text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+          activeClassName="bg-sidebar-primary text-sidebar-primary-foreground"
+        >
+          <Send className="h-4 w-4" />
+          Disparos
+        </NavLink>
       </div>
 
       {/* Stats */}
@@ -133,10 +171,20 @@ export const AppSidebar = ({ activeFilter, onToggleCnae, cnaeCodes, onAddCnae, o
       </div>
 
       {/* Footer */}
-      <div className="px-5 py-4 border-t border-sidebar-border">
-        <button className="flex items-center gap-2 text-xs text-sidebar-muted hover:text-sidebar-foreground transition-colors w-full">
+      <div className="px-5 py-4 border-t border-sidebar-border space-y-2">
+        <button
+          className="flex items-center gap-2 text-xs text-sidebar-muted hover:text-sidebar-foreground transition-colors w-full"
+          onClick={onExportCsv}
+        >
           <Download className="h-3.5 w-3.5" />
-          Exportar todos (CSV)
+          Exportar leads (CSV)
+        </button>
+        <button
+          className="flex items-center gap-2 text-xs text-sidebar-muted hover:text-sidebar-foreground transition-colors w-full"
+          onClick={onExportPdf}
+        >
+          <Download className="h-3.5 w-3.5" />
+          Exportar leads (PDF)
         </button>
       </div>
     </aside>
