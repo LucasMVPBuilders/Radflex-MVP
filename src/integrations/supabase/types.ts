@@ -14,7 +14,102 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      leads: {
+        Row: {
+          id: string
+          company_name: string | null
+          cnae_code: string | null
+          faturamento_est: number | null
+          uf: string | null
+          status: string | null
+          raw: Json | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          company_name?: string | null
+          cnae_code?: string | null
+          faturamento_est?: number | null
+          uf?: string | null
+          status?: string | null
+          raw?: Json | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          company_name?: string | null
+          cnae_code?: string | null
+          faturamento_est?: number | null
+          uf?: string | null
+          status?: string | null
+          raw?: Json | null
+          created_at?: string | null
+        }
+      }
+      message_templates: {
+        Row: {
+          id: string
+          name: string
+          channel: string
+          subject: string | null
+          body: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          channel: string
+          subject?: string | null
+          body: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          channel?: string
+          subject?: string | null
+          body?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      dispatch_logs: {
+        Row: {
+          id: string
+          template_id: string | null
+          lead_id: string
+          lead_snapshot: Json | null
+          channel: string
+          status: string
+          error_msg: string | null
+          sent_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          template_id?: string | null
+          lead_id: string
+          lead_snapshot?: Json | null
+          channel: string
+          status?: string
+          error_msg?: string | null
+          sent_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          template_id?: string | null
+          lead_id?: string
+          lead_snapshot?: Json | null
+          channel?: string
+          status?: string
+          error_msg?: string | null
+          sent_at?: string | null
+          created_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
