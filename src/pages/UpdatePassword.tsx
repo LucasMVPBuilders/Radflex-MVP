@@ -1,5 +1,5 @@
 // src/pages/UpdatePassword.tsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AuthCard } from "@/components/AuthCard";
@@ -16,16 +16,20 @@ const UpdatePassword = () => {
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const recoveredRef = useRef(false);
 
   useEffect(() => {
     // Register listener synchronously before any async call
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") setPageState("ready");
+      if (event === "PASSWORD_RECOVERY") {
+        recoveredRef.current = true;
+        setPageState("ready");
+      }
     });
 
     // Fallback: event may have already fired before component mounted
     supabase.auth.getSession().then(({ data }) => {
-      if (pageState === "loading") {
+      if (!recoveredRef.current) {
         setPageState(data.session ? "ready" : "invalid");
       }
     });
