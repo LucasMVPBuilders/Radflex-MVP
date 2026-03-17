@@ -1,7 +1,8 @@
 import { Lead } from "@/data/types";
-import { X, Mail, Phone, Building2, MapPin, Hash, DollarSign, Globe, Star } from "lucide-react";
+import { X, Mail, Phone, Building2, MapPin, Hash, DollarSign, Globe, Star, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 
 interface LeadDetailProps {
   lead: Lead | null;
@@ -12,6 +13,13 @@ const formatCurrency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(value);
 
 export const LeadDetail = ({ lead, onClose }: LeadDetailProps) => {
+  const navigate = useNavigate();
+
+  const goToDisparos = (channel: "whatsapp" | "email") => {
+    onClose();
+    navigate("/disparos", { state: { preselectedLead: lead, channel } });
+  };
+
   return (
     <AnimatePresence>
       {lead && (
@@ -43,8 +51,8 @@ export const LeadDetail = ({ lead, onClose }: LeadDetailProps) => {
                 <h3 className="text-xl font-semibold text-foreground">{lead.companyName}</h3>
                 {lead.cnpj && <p className="text-sm text-muted-foreground mt-1 font-mono-data">{lead.cnpj}</p>}
                 {lead.rating != null && (
-                  <div className="flex items-center gap-1 mt-1 text-sm text-yellow-500">
-                    <Star className="h-3.5 w-3.5 fill-yellow-500" />
+                  <div className="flex items-center gap-1 mt-1 text-sm text-star">
+                    <Star className="h-3.5 w-3.5 fill-star" />
                     <span>{lead.rating.toFixed(1)}</span>
                     {lead.reviewsCount != null && (
                       <span className="text-muted-foreground text-xs">({lead.reviewsCount} avaliações)</span>
@@ -90,10 +98,13 @@ export const LeadDetail = ({ lead, onClose }: LeadDetailProps) => {
 
               {/* Actions */}
               <div className="space-y-2 pt-2">
-                <Button className="w-full">Exportar para CRM</Button>
-                <Button variant="outline" className="w-full">
-                  <Mail className="h-4 w-4 mr-2" />
-                  Enviar Email
+                <Button className="w-full gap-2" onClick={() => goToDisparos("whatsapp")}>
+                  <Send className="h-4 w-4" />
+                  Enviar para Disparo
+                </Button>
+                <Button variant="outline" className="w-full gap-2" onClick={() => goToDisparos("email")}>
+                  <Mail className="h-4 w-4" />
+                  Disparar por Email
                 </Button>
               </div>
             </div>

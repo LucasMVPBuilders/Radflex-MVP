@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__claude_ai_Supabase__apply_migration",
+      "Bash(npm run:*)"
+    ]
+  },
+  "mcpServers": {
+    "supabase": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase@latest",
+        "--access-token",
+        "sbp_0e6137d732caa8c038d2134b20309192f54f1f5f"
+      ]
+    }
+  }
+}

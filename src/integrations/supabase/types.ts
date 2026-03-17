@@ -14,6 +14,32 @@ export type Database = {
   }
   public: {
     Tables: {
+      cnae_filters: {
+        Row: {
+          id: string
+          code: string
+          short_name: string
+          description: string | null
+          is_active: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          code: string
+          short_name: string
+          description?: string | null
+          is_active?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          code?: string
+          short_name?: string
+          description?: string | null
+          is_active?: boolean
+          created_at?: string
+        }
+      }
       leads: {
         Row: {
           id: string

@@ -1,7 +1,50 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+const CNAE_DESCRIPTIONS: Record<string, string[]> = {
+  '8640205': ['clínica de radiologia', 'diagnóstico por imagem', 'raio-x diagnóstico'],
+  '8640207': ['ultrassonografia', 'clínica de ultrassom', 'doppler vascular'],
+  '8640204': ['tomografia computadorizada', 'clínica de tomografia', 'ressonância magnética'],
+};
+
+// Grupos de estados para buscas geográficas em batches (batch 1+, sem filtro manual)
+const STATE_BATCHES: string[][] = [
+  ['São Paulo', 'Rio de Janeiro', 'Minas Gerais'],
+  ['Rio Grande do Sul', 'Paraná', 'Santa Catarina'],
+  ['Bahia', 'Pernambuco', 'Ceará'],
+  ['Goiás', 'Distrito Federal', 'Mato Grosso', 'Mato Grosso do Sul'],
+  ['Pará', 'Amazonas', 'Maranhão', 'Piauí'],
+  ['Espírito Santo', 'Rio Grande do Norte', 'Paraíba', 'Alagoas'],
+  ['Tocantins', 'Rondônia', 'Acre', 'Roraima', 'Amapá', 'Sergipe'],
+];
+
+// Mapa de sigla → nome completo para o Google Places
+const UF_NAMES: Record<string, string> = {
+  AC: 'Acre', AL: 'Alagoas', AP: 'Amapá', AM: 'Amazonas', BA: 'Bahia',
+  CE: 'Ceará', DF: 'Distrito Federal', ES: 'Espírito Santo', GO: 'Goiás',
+  MA: 'Maranhão', MT: 'Mato Grosso', MS: 'Mato Grosso do Sul', MG: 'Minas Gerais',
+  PA: 'Pará', PB: 'Paraíba', PR: 'Paraná', PE: 'Pernambuco', PI: 'Piauí',
+  RJ: 'Rio de Janeiro', RN: 'Rio Grande do Norte', RS: 'Rio Grande do Sul',
+  RO: 'Rondônia', RR: 'Roraima', SC: 'Santa Catarina', SP: 'São Paulo',
+  SE: 'Sergipe', TO: 'Tocantins',
+};
+
+const APIFY_BASE = 'https://api.apify.com/v2';
+const ACTOR_ID = 'compass~crawler-google-places';
+const POLL_INTERVAL_MS = 4000;
+const MAX_WAIT_MS = 90000;
+
+const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+
+const supabase =
+  supabaseUrl && supabaseServiceKey
+    ? createClient(supabaseUrl, supabaseServiceKey)
+    : null;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -9,7 +52,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { cnae, estado, page = 1 } = await req.json();
+    const { cnae, estado, page = 1, batch = 0, estados, requiredFields = [] }: {
+      cnae: string; estado?: string; page?: number; batch?: number; estados?: string[]; requiredFields?: string[];
+    } = await req.json();
 
     if (!cnae) {
       return new Response(
@@ -18,141 +63,236 @@ Deno.serve(async (req) => {
       );
     }
 
-    const cnaeClean = cnae.replace(/[-\/]/g, '');
-    console.log(`Searching CNAE: ${cnae} (clean: ${cnaeClean}), estado: ${estado || 'todos'}, page: ${page}`);
-
-    const apiToken = Deno.env.get('CNPJWS_API_TOKEN');
-    
-    if (!apiToken) {
+    const apifyToken = Deno.env.get('APIFY_API_TOKEN');
+    if (!apifyToken) {
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Token CNPJ.ws não configurado. Acesse cnpj.ws para obter um token gratuito.' 
-        }),
+        JSON.stringify({ success: false, error: 'Token Apify não configurado.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // CNPJ.ws commercial API - search by CNAE
-    const params = new URLSearchParams({
-      atividade_principal_id: cnaeClean,
-      pagina: String(page),
-      situacao_cadastral_id: '2', // ATIVA
-    });
+    const cnaeClean = cnae.replace(/[-\/]/g, '');
+    const descricoes = CNAE_DESCRIPTIONS[cnaeClean] || [cnae];
 
-    if (estado) {
-      // Map state abbreviation to CNPJ.ws estado_id
-      const estadoMap: Record<string, string> = {
-        'AC': '1', 'AL': '2', 'AP': '3', 'AM': '4', 'BA': '5',
-        'CE': '6', 'DF': '7', 'ES': '8', 'GO': '9', 'MA': '10',
-        'MT': '11', 'MS': '12', 'MG': '13', 'PA': '14', 'PB': '15',
-        'PR': '16', 'PE': '17', 'PI': '18', 'RJ': '19', 'RN': '20',
-        'RS': '21', 'RO': '22', 'RR': '23', 'SC': '24', 'SP': '25',
-        'SE': '26', 'TO': '27',
-      };
-      const id = estadoMap[estado.toUpperCase()];
-      if (id) params.set('estado_id', id);
+    // Prioridade: estados[] manual > batch automático > nacional
+    let searchStrings: string[];
+    if (estados && estados.length > 0) {
+      // Filtro manual: busca exatamente nos estados selecionados pelo usuário
+      const stateNames = estados.map((uf) => UF_NAMES[uf] ?? uf);
+      searchStrings = descricoes.flatMap((d) => stateNames.map((nome) => `${d} ${nome}`));
+    } else if (batch > 0) {
+      // Sem filtro manual: percorre grupos de estados automaticamente
+      const groupIndex = (batch - 1) % STATE_BATCHES.length;
+      const stateGroup = STATE_BATCHES[groupIndex];
+      searchStrings = descricoes.flatMap((d) => stateGroup.map((uf) => `${d} ${uf}`));
+    } else {
+      // Busca inicial: nacional ou por estado único legado
+      const estadoLabel = estado ? ` ${estado} Brasil` : ' Brasil';
+      searchStrings = descricoes.map((d) => `${d}${estadoLabel}`);
     }
 
-    const url = `https://comercial.cnpj.ws/pesquisa?${params.toString()}`;
-    console.log('Requesting CNPJ.ws:', url);
+    // Para compatibilidade com o resto do código (logs, DB)
+    const searchString = searchStrings[0];
 
-    const response = await fetch(url, {
-      headers: {
-        'x_api_token': apiToken,
-        'Accept': 'application/json',
-      },
+    const actorInput = {
+      searchStringsArray: searchStrings,
+      maxCrawledPlacesPerSearch: 100,
+      countryCode: 'br',
+      language: 'pt',
+    };
+
+    console.log(`Disparando run para CNAE: ${cnae}`);
+
+    const runRes = await fetch(`${APIFY_BASE}/acts/${ACTOR_ID}/runs?token=${apifyToken}&memory=256`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(actorInput),
     });
 
-    console.log(`CNPJ.ws status: ${response.status}`);
-
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error('CNPJ.ws error:', errText.slice(0, 300));
+    if (!runRes.ok) {
+      const errText = await runRes.text();
+      console.error('Erro ao disparar run:', errText.slice(0, 300));
       return new Response(
-        JSON.stringify({ success: false, error: `Erro da API CNPJ.ws: ${response.status}` }),
-        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: `Erro ao iniciar Apify: ${runRes.status}` }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const data = await response.json();
-    const cnpjs: string[] = data.cnpjs || data.data || [];
-    const pagination = data.paginacao || {};
+    const runData = await runRes.json();
+    const apifyRunId: string = runData?.data?.id;
+    const datasetId: string = runData?.data?.defaultDatasetId;
 
-    console.log(`Found ${cnpjs.length} CNPJs, total: ${pagination.total || 'unknown'}`);
-
-    // Now fetch details for each CNPJ using the public API
-    const leads: Lead[] = [];
-    
-    const detailPromises = cnpjs.slice(0, 20).map(async (cnpjNum: string) => {
-      const cleanCnpj = cnpjNum.replace(/\D/g, '');
-      try {
-        // Use CNPJ.ws public API for details (free, rate limited)
-        const detailUrl = `https://publica.cnpj.ws/cnpj/${cleanCnpj}`;
-        const detailRes = await fetch(detailUrl, {
-          headers: { 'Accept': 'application/json' },
-        });
-
-        if (detailRes.ok) {
-          const c = await detailRes.json();
-          const est = c.estabelecimento || {};
-          return {
-            id: cleanCnpj,
-            companyName: est.nome_fantasia || c.razao_social || 'Empresa',
-            cnae: cnae,
-            cnpj: formatCnpj(cleanCnpj),
-            city: est.cidade?.nome || '',
-            state: est.estado?.sigla || '',
-            phone: formatPhone(est.ddd1 && est.telefone1 ? `${est.ddd1}${est.telefone1}` : ''),
-            email: (est.correio_eletronico || '').toLowerCase().trim(),
-            estimatedRevenue: estimateRevenueFromCapital(c.capital_social, c.porte?.descricao || ''),
-            status: 'found' as const,
-          };
-        } else {
-          // Fallback: use BrasilAPI
-          const brUrl = `https://brasilapi.com.br/api/cnpj/v1/${cleanCnpj}`;
-          const brRes = await fetch(brUrl);
-          if (brRes.ok) {
-            const b = await brRes.json();
-            return {
-              id: cleanCnpj,
-              companyName: b.nome_fantasia || b.razao_social || 'Empresa',
-              cnae: cnae,
-              cnpj: formatCnpj(cleanCnpj),
-              city: b.municipio || '',
-              state: b.uf || '',
-              phone: formatPhone(b.ddd_telefone_1 || ''),
-              email: (b.correio_eletronico || '').toLowerCase().trim(),
-              estimatedRevenue: estimateRevenueFromCapital(b.capital_social, b.porte || ''),
-              status: 'found' as const,
-            };
-          }
-        }
-      } catch (e) {
-        console.log(`Failed to fetch details for ${cleanCnpj}:`, e.message);
-      }
-      return null;
-    });
-
-    const results = await Promise.all(detailPromises);
-    for (const r of results) {
-      if (r) leads.push(r);
+    if (!apifyRunId) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Apify não retornou runId.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    console.log(`Total leads with details: ${leads.length}`);
+    console.log(`Run iniciado: ${apifyRunId}, dataset: ${datasetId}`);
+
+    const deadline = Date.now() + MAX_WAIT_MS;
+    let status = 'RUNNING';
+
+    while (Date.now() < deadline && (status === 'RUNNING' || status === 'READY')) {
+      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+
+      const statusRes = await fetch(`${APIFY_BASE}/actor-runs/${apifyRunId}?token=${apifyToken}`);
+      if (statusRes.ok) {
+        const statusData = await statusRes.json();
+        status = statusData?.data?.status || 'UNKNOWN';
+        console.log(`Run status: ${status}`);
+      }
+    }
+
+    if (status !== 'SUCCEEDED') {
+      console.error(`Run terminou com status: ${status}`);
+      return new Response(
+        JSON.stringify({ success: false, error: `Run Apify terminou com status: ${status}` }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const itemsRes = await fetch(
+      `${APIFY_BASE}/datasets/${datasetId}/items?token=${apifyToken}&limit=300`,
+    );
+
+    if (!itemsRes.ok) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Erro ao buscar resultados do dataset.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const allPlaces: ApifyPlace[] = await itemsRes.json();
+    console.log(`Dataset retornou ${allPlaces.length} lugares`);
+
+    // Filtra pelos campos obrigatórios definidos pelo usuário
+    // Campos suportados vindos do Google Places: phone, website, rating
+    const places = requiredFields.length === 0 ? allPlaces : allPlaces.filter((p) => {
+      if (requiredFields.includes('has_phone') && !p.phone) return false;
+      if (requiredFields.includes('has_website') && !p.website) return false;
+      if (requiredFields.includes('has_rating') && !(p.totalScore && p.totalScore > 0)) return false;
+      return true;
+    });
+    console.log(`Após filtro de qualidade: ${places.length} lugares (${allPlaces.length - places.length} descartados)`);
+
+    const leads: Lead[] = places
+      .filter((place) => place.title)
+      .map((place, index) => ({
+        id: place.placeId || String(index + 1),
+        companyName: place.title,
+        cnae,
+        cnpj: '',
+        city: extractCity(place.address || ''),
+        state: extractState(place.address || '', estado),
+        phone: place.phone || '',
+        email: '',
+        estimatedRevenue: estimateRevenue(place.reviewsCount, place.totalScore),
+        status: 'found' as const,
+        website: place.website || '',
+        address: place.address || '',
+        rating: place.totalScore || 0,
+        reviewsCount: place.reviewsCount || 0,
+      }));
+
+    let savedRunId: string | null = null;
+
+    if (!supabase) {
+      console.warn('Supabase client not configured. Skipping persistence of scraping data.');
+    } else {
+      try {
+        const { data: runInsert, error: runError } = await supabase
+          .from('scraping_runs')
+          .insert({
+            source: 'search-cnae-apify',
+            filters_json: {
+              cnae,
+              estado: estado || null,
+              page,
+              searchString,
+              apifyRunId,
+              datasetId,
+            },
+          })
+          .select('id')
+          .single();
+
+        if (runError) {
+          console.error('Error inserting scraping_run:', runError);
+        } else {
+          savedRunId = runInsert?.id ?? null;
+        }
+
+        if (savedRunId) {
+          const { error: filterError } = await supabase.from('cnae_filters').insert({
+            run_id: savedRunId,
+            cnae_code: cnae,
+            cnae_description: descricao,
+            uf: estado || null,
+            raw: {
+              cnae,
+              estado: estado || null,
+              page,
+              searchString,
+              actorInput,
+            },
+          });
+
+          if (filterError) {
+            console.error('Error inserting cnae_filters:', filterError);
+          }
+        }
+
+        if (savedRunId && leads.length > 0) {
+          // Busca placeIds já salvos para este CNAE para evitar duplicatas
+          const { data: existingRows } = await supabase
+            .from('leads')
+            .select('raw')
+            .eq('cnae_code', cnae);
+
+          const existingPlaceIds = new Set(
+            (existingRows ?? []).map((r: any) => r.raw?.id).filter(Boolean)
+          );
+
+          const newLeads = leads.filter((l) => l.id && !existingPlaceIds.has(l.id));
+          console.log(`${leads.length} leads scrapeados, ${newLeads.length} novos (${leads.length - newLeads.length} duplicatas ignoradas)`);
+
+          const leadRows = newLeads.map((lead) => ({
+            run_id: savedRunId,
+            company_name: lead.companyName,
+            cnae_code: lead.cnae,
+            faturamento_est: String(lead.estimatedRevenue),
+            uf: lead.state,
+            contato: lead.phone || lead.website || '',
+            status: lead.status,
+            raw: lead,
+          }));
+
+          const { error: leadsError } = await supabase.from('leads').insert(leadRows);
+
+          if (leadsError) {
+            console.error('Error inserting leads:', leadsError);
+          }
+        }
+      } catch (dbError) {
+        console.error('Unexpected error while saving scraping data:', dbError);
+      }
+    }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        leads, 
-        total: pagination.total || leads.length,
-        pages: pagination.paginas || 1,
-        currentPage: pagination.pagina || page,
+      JSON.stringify({
+        success: true,
+        leads,
+        total: leads.length,
+        pages: 1,
+        currentPage: page,
+        savedRunId,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-  } catch (error) {
-    console.error('Error:', error);
+  } catch (error: any) {
+    console.error('Erro:', error);
     return new Response(
       JSON.stringify({ success: false, error: error.message || 'Erro ao buscar leads' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -171,33 +311,51 @@ interface Lead {
   email: string;
   estimatedRevenue: number;
   status: string;
+  website?: string;
+  address?: string;
+  rating?: number;
+  reviewsCount?: number;
 }
 
-function formatCnpj(cnpj: string): string {
-  const clean = cnpj.replace(/\D/g, '');
-  if (clean.length !== 14) return cnpj;
-  return `${clean.slice(0, 2)}.${clean.slice(2, 5)}.${clean.slice(5, 8)}/${clean.slice(8, 12)}-${clean.slice(12)}`;
+interface ApifyPlace {
+  placeId?: string;
+  title: string;
+  address?: string;
+  phone?: string;
+  website?: string;
+  totalScore?: number;
+  reviewsCount?: number;
 }
 
-function formatPhone(phone: string): string {
-  if (!phone) return '';
-  const clean = phone.replace(/\D/g, '').replace(/^0+/, '');
-  if (clean.length === 11) return `(${clean.slice(0, 2)}) ${clean.slice(2, 7)}-${clean.slice(7)}`;
-  if (clean.length === 10) return `(${clean.slice(0, 2)}) ${clean.slice(2, 6)}-${clean.slice(6)}`;
-  return phone;
+// Endereços do Google Places no Brasil: "Rua X, 123 - Bairro, Cidade - SP, Brasil"
+// O padrão "Cidade - UF" aparece como penúltimo segmento separado por vírgula
+function extractCity(address: string): string {
+  if (!address) return '';
+  const parts = address.split(',').map((part) => part.trim());
+  // Penúltimo segmento contém "Cidade - UF" ou apenas "Cidade"
+  const segment = parts.length >= 2 ? parts[parts.length - 2] : parts[0];
+  // Remove o sufixo " - UF" caso exista
+  return segment.replace(/\s*-\s*[A-Z]{2}$/, '').trim();
 }
 
-function estimateRevenueFromCapital(capitalSocial: number | string | undefined, porte: string): number {
-  const p = (porte || '').toLowerCase();
-  if (p.includes('grande') || p.includes('demais')) return 5000000 + Math.floor(Math.random() * 10000000);
-  if (p.includes('medio') || p.includes('médio')) return 1500000 + Math.floor(Math.random() * 3000000);
-  if (p.includes('pequeno')) return 500000 + Math.floor(Math.random() * 1500000);
-  if (p.includes('micro') || p.includes('mei')) return 100000 + Math.floor(Math.random() * 400000);
-  
-  const cap = typeof capitalSocial === 'number' ? capitalSocial : parseFloat(String(capitalSocial || '0'));
-  if (cap > 1000000) return cap * 3;
-  if (cap > 100000) return cap * 5;
-  if (cap > 10000) return cap * 8;
-  
-  return 300000 + Math.floor(Math.random() * 1500000);
+const BR_STATES = new Set([
+  'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG',
+  'PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO',
+]);
+
+function extractState(address: string, fallback?: string): string {
+  if (!address) return fallback || '';
+  // Procura padrão "- UF," ou "- UF " ao final do segmento de cidade
+  const match = address.match(/-\s*([A-Z]{2})(?:\s*,|\s*$)/);
+  if (match && BR_STATES.has(match[1])) return match[1];
+  return fallback || '';
+}
+
+function estimateRevenue(reviews?: number, _rating?: number): number {
+  const reviewCount = reviews || 0;
+  if (reviewCount > 500) return 3000000 + Math.floor(Math.random() * 5000000);
+  if (reviewCount > 200) return 1500000 + Math.floor(Math.random() * 3000000);
+  if (reviewCount > 50) return 500000 + Math.floor(Math.random() * 1500000);
+  if (reviewCount > 10) return 200000 + Math.floor(Math.random() * 500000);
+  return 100000 + Math.floor(Math.random() * 300000);
 }

@@ -18,7 +18,7 @@ interface DispatchProgressProps {
 const statusIcon = (status: DispatchItem["status"]) => {
   switch (status) {
     case "sent":
-      return <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />;
+      return <CheckCircle2 className="h-4 w-4 text-success shrink-0" />;
     case "failed":
       return <XCircle className="h-4 w-4 text-destructive shrink-0" />;
     case "sending":
@@ -96,7 +96,7 @@ export function DispatchProgress({
       {/* Summary */}
       {items.length > 0 && (
         <div className="flex gap-4 text-sm">
-          <span className="text-green-600 font-medium">{sentCount} enviados</span>
+          <span className="text-success font-medium">{sentCount} enviados</span>
           <span className="text-destructive font-medium">{failedCount} falhas</span>
           {cancelledCount > 0 && (
             <span className="text-muted-foreground">{cancelledCount} pulados</span>

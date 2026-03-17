@@ -1,9 +1,16 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Lead } from "@/data/types";
 
-export async function searchLeadsByCnae(cnae: string, estado?: string, page = 1): Promise<{ leads: Lead[]; total: number }> {
+export async function searchLeadsByCnae(
+  cnae: string,
+  estado?: string,
+  page = 1,
+  batch = 0,
+  estados?: string[],
+  requiredFields?: string[],
+): Promise<{ leads: Lead[]; total: number }> {
   const { data, error } = await supabase.functions.invoke("search-cnae", {
-    body: { cnae, estado, page },
+    body: { cnae, estado, page, batch, estados, requiredFields },
   });
 
   if (error) {

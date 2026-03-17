@@ -1,4 +1,5 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { LeadSelector } from "@/components/disparos/LeadSelector";
 import { TemplateEditor } from "@/components/disparos/TemplateEditor";
@@ -26,14 +27,24 @@ function prefixLeadId(lead: Lead, source: "saved" | "session"): string {
 }
 
 const Disparos = () => {
-  // selectedIds: authoritative source of which leads are selected
-  // allLoadedLeads: the full list currently loaded by LeadSelector (replaced on each callback)
-  // selectedLeads is always DERIVED by filtering allLoadedLeads by selectedIds
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [allLoadedLeads, setAllLoadedLeads] = useState<Lead[]>([]);
-  const leadSource = "saved" as const; // session leads not accessible from this page (MVP)
+  const location = useLocation();
+  const routeState = location.state as {
+    preselectedLead?: Lead;
+    channel?: DispatchChannel;
+  } | null;
 
-  const [channel, setChannel] = useState<DispatchChannel>("whatsapp");
+  // Se viemos do modal de detalhe com um lead pré-selecionado, inicializamos com ele
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(
+    routeState?.preselectedLead ? new Set([routeState.preselectedLead.id]) : new Set()
+  );
+  const [allLoadedLeads, setAllLoadedLeads] = useState<Lead[]>(
+    routeState?.preselectedLead ? [routeState.preselectedLead] : []
+  );
+  const leadSource = "saved" as const;
+
+  const [channel, setChannel] = useState<DispatchChannel>(
+    routeState?.channel ?? "whatsapp"
+  );
   const [selectedTemplate, setSelectedTemplate] =
     useState<MessageTemplate | null>(null);
 
@@ -43,10 +54,8 @@ const Disparos = () => {
   const isPausedRef = useRef(false);
   const isCancelledRef = useRef(false);
 
-  const sentCount = dispatchItems.filter((i) => i.status === "sent").length;
-  const failedCount = dispatchItems.filter((i) => i.status === "failed").length;
-
-  // Replace (not merge) allLoadedLeads on every LeadSelector callback
+  // Quando LeadSelector carregar os leads do banco, garante que o lead pré-selecionado
+  // continue selecionado caso ele exista na lista (lead salvo)
   const handleSelectionChange = useCallback(
     (ids: Set<string>, currentLeads: Lead[]) => {
       setSelectedIds(ids);
@@ -55,7 +64,18 @@ const Disparos = () => {
     []
   );
 
-  // Always derive selectedLeads from the current state — never cache separately
+  // Notifica o usuário quando chegou com um lead pré-selecionado
+  useEffect(() => {
+    if (routeState?.preselectedLead) {
+      toast.info(`Lead "${routeState.preselectedLead.companyName}" pré-selecionado.`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const sentCount = dispatchItems.filter((i) => i.status === "sent").length;
+  const failedCount = dispatchItems.filter((i) => i.status === "failed").length;
+
+  // selectedLeads é sempre derivado — nunca cacheado separadamente
   const selectedLeads = allLoadedLeads.filter((l) => selectedIds.has(l.id));
 
   const missingContact = selectedLeads.filter(
@@ -89,8 +109,6 @@ const Disparos = () => {
     };
 
     for (let i = 0; i < queue.length; i++) {
-      // Pause-poll: checks isCancelledRef inside the loop so cancel-during-pause
-      // is honored immediately (within 200ms) rather than deadlocking.
       while (isPausedRef.current && !isCancelledRef.current) {
         await sleep(200);
       }
@@ -236,7 +254,7 @@ const Disparos = () => {
           </h2>
 
           {missingContact > 0 && selectedIds.size > 0 && (
-            <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 rounded px-3 py-2">
+            <div className="flex items-center gap-2 text-sm text-warning-muted-foreground bg-warning-muted rounded px-3 py-2">
               <AlertTriangle className="h-4 w-4 shrink-0" />
               {missingContact} lead{missingContact > 1 ? "s" : ""} sem{" "}
               {channel === "whatsapp" ? "telefone válido" : "email válido"} —{" "}

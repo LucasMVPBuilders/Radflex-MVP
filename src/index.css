@@ -4,51 +4,63 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 215 28% 17%;
+    --background: 251 50% 99%;
+    --foreground: 240 28% 14%;
 
     --card: 0 0% 100%;
-    --card-foreground: 215 28% 17%;
+    --card-foreground: 240 28% 14%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 215 28% 17%;
+    --popover-foreground: 240 28% 14%;
 
-    --primary: 217 91% 53%;
+    /* Roxo Principal #5B2ECC */
+    --primary: 257 63% 49%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 215 28% 17%;
+    /* Lavanda claro #EDE9FE */
+    --secondary: 251 91% 96%;
+    --secondary-foreground: 257 63% 40%;
 
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 251 50% 96%;
+    --muted-foreground: 240 16% 47%;
 
-    --accent: 210 40% 96%;
-    --accent-foreground: 215 28% 17%;
+    /* Lavanda como accent */
+    --accent: 251 91% 96%;
+    --accent-foreground: 257 63% 40%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --warning-muted: 48 100% 96%;
+    --warning-muted-foreground: 32 81% 29%;
+
+    --star: 45 96% 50%;
+
     --success: 160 84% 39%;
     --success-foreground: 0 0% 100%;
 
-    --navy: 222 47% 11%;
-    --navy-foreground: 210 40% 98%;
+    /* Escuro #1A1A2E */
+    --navy: 240 28% 14%;
+    --navy-foreground: 251 91% 96%;
 
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 217 91% 53%;
+    --border: 251 40% 88%;
+    --input: 251 40% 88%;
+    --ring: 257 63% 49%;
 
-    --radius: 0.25rem;
+    --radius: 0.5rem;
 
-    --sidebar-background: 222 47% 11%;
-    --sidebar-foreground: 210 40% 96%;
-    --sidebar-primary: 217 91% 53%;
+    /* Sidebar: fundo escuro #1A1A2E */
+    --sidebar-background: 240 28% 14%;
+    --sidebar-foreground: 251 60% 93%;
+    --sidebar-primary: 257 63% 49%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 47% 16%;
-    --sidebar-accent-foreground: 210 40% 96%;
-    --sidebar-border: 222 47% 18%;
-    --sidebar-ring: 217 91% 53%;
-    --sidebar-muted: 215 16% 47%;
+    --sidebar-accent: 240 28% 20%;
+    --sidebar-accent-foreground: 251 60% 93%;
+    --sidebar-border: 240 28% 22%;
+    --sidebar-ring: 257 63% 49%;
+    --sidebar-muted: 251 20% 55%;
   }
 }
 
@@ -63,7 +75,30 @@
 }
 
 @layer utilities {
+  /* ── Dados / Código ─────────────────────────── */
   .font-mono-data {
     font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ── Gradientes da marca RadiFlex ───────────── */
+
+  /* Gradiente Principal: Roxo vibrante */
+  .gradient-primary {
+    background: linear-gradient(135deg, #5B2ECC 0%, #7B52E8 100%);
+  }
+
+  /* Gradiente Escuro: Deep purple */
+  .gradient-dark {
+    background: linear-gradient(135deg, #3D1F99 0%, #5B2ECC 100%);
+  }
+
+  /* Gradiente Suave: Lilás → Roxo Claro */
+  .gradient-soft {
+    background: linear-gradient(135deg, #7B52E8 0%, #A78BFA 100%);
+  }
+
+  /* Gradiente Claro: Lavanda → Branco */
+  .gradient-light {
+    background: linear-gradient(135deg, #EDE9FE 0%, #FFFFFF 100%);
   }
 }
