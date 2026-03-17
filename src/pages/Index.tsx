@@ -157,10 +157,11 @@ const Index = () => {
     batch = 0,
     estados?: string[],
     requiredFields?: string[],
+    searchTerms?: string[],
   ) => {
     setLoading(true);
     try {
-      const { leads } = await searchLeadsByCnae(code, undefined, 1, batch, estados, requiredFields);
+      const { leads } = await searchLeadsByCnae(code, undefined, 1, batch, estados, requiredFields, searchTerms);
       setAllLeads((prev) => {
         if (append) {
           const existingIds = new Set(prev.map((l) => l.id));
@@ -183,38 +184,53 @@ const Index = () => {
     }
   }, []);
 
-  const fetchMoreLeads = useCallback((estados?: string[]) => {
+  // Busca fresca: substitui os leads existentes pelos filtros atuais
+  const searchWithFilters = useCallback(() => {
+    if (activeCnaes.length === 0) {
+      toast.info("Adicione um CNAE antes de buscar.");
+      return;
+    }
+    const requiredFields = qualityFilters.filter((id) => SEARCHABLE_IDS.has(id));
+    const estados = selectedStates.length > 0 ? selectedStates : undefined;
+    activeCnaes.forEach((code) => {
+      const cnaeInfo = cnaeCodes.find((c) => c.code === code);
+      const searchTerms = cnaeInfo?.shortName && cnaeInfo.shortName !== code ? [cnaeInfo.shortName] : undefined;
+      setCnaeBatchMap((prev) => ({ ...prev, [code]: 0 }));
+      fetchLeadsForCnae(code, false, 0, estados, requiredFields, searchTerms);
+    });
+  }, [activeCnaes, qualityFilters, selectedStates, fetchLeadsForCnae]);
+
+  // Busca mais: acumula resultados com os mesmos filtros (próximo batch)
+  const fetchMoreLeads = useCallback(() => {
     if (activeCnaes.length === 0) {
       toast.info("Adicione um CNAE para buscar mais leads.");
       return;
     }
     const requiredFields = qualityFilters.filter((id) => SEARCHABLE_IDS.has(id));
-    if (estados && estados.length > 0) {
-      activeCnaes.forEach((code) => fetchLeadsForCnae(code, true, 0, estados, requiredFields));
-    } else {
-      activeCnaes.forEach((code) => {
-        const nextBatch = (cnaeBatchMap[code] ?? 0) + 1;
-        setCnaeBatchMap((prev) => ({ ...prev, [code]: nextBatch }));
-        fetchLeadsForCnae(code, true, nextBatch, undefined, requiredFields);
-      });
-    }
-  }, [activeCnaes, cnaeBatchMap, qualityFilters, fetchLeadsForCnae]);
+    const estados = selectedStates.length > 0 ? selectedStates : undefined;
+    activeCnaes.forEach((code) => {
+      const nextBatch = (cnaeBatchMap[code] ?? 0) + 1;
+      setCnaeBatchMap((prev) => ({ ...prev, [code]: nextBatch }));
+      fetchLeadsForCnae(code, true, nextBatch, estados, requiredFields);
+    });
+  }, [activeCnaes, cnaeBatchMap, qualityFilters, selectedStates, fetchLeadsForCnae]);
 
   const addCnae = useCallback(
     async (code: string, name: string) => {
       const requiredFields = qualityFilters.filter((id) => SEARCHABLE_IDS.has(id));
+      const searchTerms = name && name !== code ? [name] : undefined;
       if (cnaeCodes.some((c) => c.code === code)) {
         toast.info("Esse CNAE já está na lista. Buscando leads...");
         setActiveCnaes((prev) => (prev.includes(code) ? prev : [...prev, code]));
         await supabase.from("cnae_filters").update({ is_active: true }).eq("code", code);
-        fetchLeadsForCnae(code, false, 0, undefined, requiredFields);
+        fetchLeadsForCnae(code, false, 0, undefined, requiredFields, searchTerms);
         return;
       }
       const newCnae: CnaeCode = { code, shortName: name, description: name };
       setCnaeCodes((prev) => [...prev, newCnae]);
       setActiveCnaes((prev) => [...prev, code]);
       await supabase.from("cnae_filters").upsert({ code, short_name: name, description: name, is_active: true });
-      fetchLeadsForCnae(code, false, 0, undefined, requiredFields);
+      fetchLeadsForCnae(code, false, 0, undefined, requiredFields, searchTerms);
     },
     [cnaeCodes, qualityFilters, fetchLeadsForCnae]
   );
@@ -400,130 +416,150 @@ const Index = () => {
           onModeChange={setMode}
           onLogout={handleLogout}
         />
-        {/* Barra de filtros de qualidade — sempre visível para pré-definir antes de buscar */}
-        <div className="flex items-center gap-2 flex-wrap mb-3">
-          <span className="text-xs text-muted-foreground font-medium shrink-0">
-            {baseLeads.length === 0 ? "Pré-filtrar:" : "Mostrar:"}
-          </span>
-          {QUALITY_FILTERS.map((f) => {
-            const isActive = qualityFilters.includes(f.id);
-            const count = baseLeads.filter(f.pred).length;
-            const hasLeads = baseLeads.length > 0;
-            const Icon = f.icon;
-            return (
-              <button
-                key={f.id}
-                title={f.searchable ? "Aplicado na busca e na exibição" : "Aplicado apenas na exibição"}
-                onClick={() =>
-                  setQualityFilters((prev) =>
-                    isActive ? prev.filter((id) => id !== f.id) : [...prev, f.id]
-                  )
-                }
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border transition-colors ${
-                  isActive
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-background text-muted-foreground border-border hover:border-primary/50 hover:text-foreground"
-                }`}
-              >
-                <Icon className="h-3 w-3" />
-                {f.label}
-                {f.searchable && (
-                  <span className={`text-[10px] font-bold ${isActive ? "opacity-70" : "opacity-40"}`} title="Afeta a busca">
-                    ●
-                  </span>
-                )}
-                {hasLeads && (
-                  <span className={`text-[10px] ${isActive ? "opacity-80" : "opacity-60"}`}>
-                    {count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-          {qualityFilters.length > 0 && (
-            <button
-              onClick={() => setQualityFilters([])}
-              className="text-xs text-muted-foreground hover:text-foreground underline ml-1"
-            >
-              limpar
-            </button>
-          )}
-        </div>
+        {/* Painel de filtros unificado */}
+        {mode === "session" && (
+          <div className="rounded-lg border border-border bg-card p-3 mb-4 space-y-3">
 
-        {mode === "session" && activeCnaes.length > 0 && (
-          <div className="flex justify-end mb-3">
-            <Popover open={filterPopoverOpen} onOpenChange={setFilterPopoverOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" disabled={loading} className="gap-2">
-                  <SlidersHorizontal className="h-4 w-4" />
-                  Buscar mais leads
-                  {selectedStates.length > 0 && (
-                    <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-xs">
-                      {selectedStates.length}
-                    </Badge>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-72 p-4 space-y-3">
-                <div>
-                  <p className="text-sm font-medium">Filtrar por estado</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Sem seleção: busca em todo o Brasil
-                  </p>
-                </div>
-
-                <div className="flex gap-2">
+            {/* Linha 1: filtros de qualidade */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-muted-foreground font-medium w-16 shrink-0">Qualidade</span>
+              {QUALITY_FILTERS.map((f) => {
+                const isActive = qualityFilters.includes(f.id);
+                const count = baseLeads.filter(f.pred).length;
+                const Icon = f.icon;
+                return (
                   <button
-                    className="text-xs text-primary hover:underline"
-                    onClick={() => setSelectedStates(BR_STATES.map((s) => s.uf))}
+                    key={f.id}
+                    title={f.searchable ? "Afeta busca + exibição" : "Afeta apenas exibição"}
+                    onClick={() =>
+                      setQualityFilters((prev) =>
+                        isActive ? prev.filter((id) => id !== f.id) : [...prev, f.id]
+                      )
+                    }
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border transition-colors ${
+                      isActive
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-background text-muted-foreground border-border hover:border-primary/50 hover:text-foreground"
+                    }`}
                   >
-                    Selecionar todos
+                    <Icon className="h-3 w-3" />
+                    {f.label}
+                    {baseLeads.length > 0 && (
+                      <span className={`text-[10px] ${isActive ? "opacity-80" : "opacity-50"}`}>{count}</span>
+                    )}
                   </button>
-                  <span className="text-xs text-muted-foreground">·</span>
-                  <button
-                    className="text-xs text-muted-foreground hover:underline"
-                    onClick={() => setSelectedStates([])}
-                  >
-                    Limpar
-                  </button>
-                </div>
+                );
+              })}
+              {qualityFilters.length > 0 && (
+                <button onClick={() => setQualityFilters([])} className="text-xs text-muted-foreground hover:text-foreground underline">
+                  limpar
+                </button>
+              )}
+            </div>
 
-                <div className="grid grid-cols-2 gap-1.5 max-h-52 overflow-y-auto pr-1">
-                  {BR_STATES.map(({ uf, nome }) => (
-                    <label
-                      key={uf}
-                      className="flex items-center gap-1.5 text-xs cursor-pointer select-none"
-                    >
-                      <Checkbox
-                        checked={selectedStates.includes(uf)}
-                        onCheckedChange={(checked) =>
-                          setSelectedStates((prev) =>
-                            checked ? [...prev, uf] : prev.filter((s) => s !== uf)
-                          )
-                        }
-                      />
-                      <span className="font-mono text-[10px] text-muted-foreground w-5">{uf}</span>
-                      <span className="truncate">{nome}</span>
-                    </label>
-                  ))}
-                </div>
-
-                <Button
-                  size="sm"
-                  className="w-full gap-2"
-                  disabled={loading}
-                  onClick={() => {
-                    setFilterPopoverOpen(false);
-                    fetchMoreLeads(selectedStates.length > 0 ? selectedStates : undefined);
-                  }}
+            {/* Linha 2: filtro de estado */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-muted-foreground font-medium w-16 shrink-0">Estado</span>
+              {selectedStates.map((uf) => (
+                <span
+                  key={uf}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-primary text-primary-foreground border border-primary"
                 >
-                  <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-                  {selectedStates.length > 0
-                    ? `Buscar em ${selectedStates.length} estado${selectedStates.length > 1 ? "s" : ""}`
-                    : "Buscar em todo o Brasil"}
+                  {uf}
+                  <button onClick={() => setSelectedStates((prev) => prev.filter((s) => s !== uf))} className="opacity-70 hover:opacity-100">
+                    ×
+                  </button>
+                </span>
+              ))}
+              <Popover open={filterPopoverOpen} onOpenChange={setFilterPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <button className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border border-dashed border-border text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors">
+                    + Estado
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-64 p-3 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <p className="text-xs font-medium">Selecionar estados</p>
+                    <div className="flex gap-2">
+                      <button className="text-xs text-primary hover:underline" onClick={() => setSelectedStates(BR_STATES.map((s) => s.uf))}>todos</button>
+                      <button className="text-xs text-muted-foreground hover:underline" onClick={() => setSelectedStates([])}>limpar</button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1 max-h-48 overflow-y-auto">
+                    {BR_STATES.map(({ uf, nome }) => (
+                      <label key={uf} className="flex items-center gap-1.5 text-xs cursor-pointer select-none py-0.5">
+                        <Checkbox
+                          checked={selectedStates.includes(uf)}
+                          onCheckedChange={(checked) =>
+                            setSelectedStates((prev) => checked ? [...prev, uf] : prev.filter((s) => s !== uf))
+                          }
+                        />
+                        <span className="font-mono text-[10px] text-muted-foreground w-5">{uf}</span>
+                        <span className="truncate">{nome}</span>
+                      </label>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+              {selectedStates.length > 0 && (
+                <button onClick={() => setSelectedStates([])} className="text-xs text-muted-foreground hover:text-foreground underline">
+                  limpar
+                </button>
+              )}
+            </div>
+
+            {/* Linha 3: botões de busca */}
+            {activeCnaes.length > 0 && (
+              <div className="flex items-center gap-2 pt-1 border-t border-border">
+                <Button size="sm" onClick={searchWithFilters} disabled={loading} className="gap-1.5 h-7 text-xs">
+                  <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} />
+                  Buscar com filtros
                 </Button>
-              </PopoverContent>
-            </Popover>
+                <Button size="sm" variant="outline" onClick={fetchMoreLeads} disabled={loading} className="gap-1.5 h-7 text-xs">
+                  + Buscar mais
+                </Button>
+                <span className="text-xs text-muted-foreground ml-1">
+                  {selectedStates.length > 0
+                    ? `em ${selectedStates.map((s) => s).join(", ")}`
+                    : "em todo o Brasil"}
+                  {qualityFilters.filter((id) => SEARCHABLE_IDS.has(id)).length > 0 && " · com filtros de qualidade"}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Filtros de exibição no modo "Meus leads" */}
+        {mode === "saved" && baseLeads.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap mb-3">
+            <span className="text-xs text-muted-foreground font-medium shrink-0">Mostrar:</span>
+            {QUALITY_FILTERS.map((f) => {
+              const isActive = qualityFilters.includes(f.id);
+              const count = baseLeads.filter(f.pred).length;
+              const Icon = f.icon;
+              return (
+                <button
+                  key={f.id}
+                  onClick={() =>
+                    setQualityFilters((prev) =>
+                      isActive ? prev.filter((id) => id !== f.id) : [...prev, f.id]
+                    )
+                  }
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border transition-colors ${
+                    isActive
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background text-muted-foreground border-border hover:border-primary/50 hover:text-foreground"
+                  }`}
+                >
+                  <Icon className="h-3 w-3" />
+                  {f.label}
+                  <span className={`text-[10px] ${isActive ? "opacity-80" : "opacity-50"}`}>{count}</span>
+                </button>
+              );
+            })}
+            {qualityFilters.length > 0 && (
+              <button onClick={() => setQualityFilters([])} className="text-xs text-muted-foreground hover:text-foreground underline ml-1">limpar</button>
+            )}
           </div>
         )}
         <LeadsTable leads={filteredLeads} onSelectLead={setSelectedLead} loading={loading} />

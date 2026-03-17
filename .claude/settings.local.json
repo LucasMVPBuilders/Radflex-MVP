@@ -11,7 +11,29 @@
       "mcp__ad35985d-21bf-4ff9-bb28-75c12725787d__get_project",
       "mcp__ad35985d-21bf-4ff9-bb28-75c12725787d__list_tables",
       "mcp__claude_ai_Supabase__list_projects",
-      "mcp__claude_ai_Supabase__execute_sql"
+      "mcp__claude_ai_Supabase__execute_sql",
+      "mcp__claude_ai_Supabase__get_logs",
+      "Bash(npx supabase:*)",
+      "Bash(echo:*)",
+      "Bash(SUPABASE_ACCESS_TOKEN=\"\" npx supabase functions deploy search-cnae --project-ref cxrhpfywlbtcsrgxydhn)",
+      "Bash(SUPABASE_ACCESS_TOKEN=\"sbp_4a3d981a8258eacf7e9e13b486bb55ab1639e463\" npx supabase functions deploy search-cnae --project-ref cxrhpfywlbtcsrgxydhn)",
+      "Bash(SUPABASE_ACCESS_TOKEN=\"sbp_4a3d981a8258eacf7e9e13b486bb55ab1639e463\" npx supabase functions deploy search-cnae --project-ref cxrhpfywlbtcsrgxydhn --no-verify-jwt)",
+      "Bash(curl -s \"https://api.supabase.com/v1/projects/cxrhpfywlbtcsrgxydhn/functions/search-cnae/logs?limit=20\" -H \"Authorization: Bearer sbp_4a3d981a8258eacf7e9e13b486bb55ab1639e463\")",
+      "Bash(curl:*)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(''''success:'''', d.get\\(''''success''''\\)\\); print\\(''''total:'''', d.get\\(''''total''''\\)\\); print\\(''''erro:'''', d.get\\(''''error'''',''''''''\\)\\)\")",
+      "mcp__plugin_playwright_playwright__browser_navigate",
+      "mcp__plugin_playwright_playwright__browser_fill_form",
+      "mcp__plugin_playwright_playwright__browser_snapshot",
+      "Bash(SUPABASE_ACCESS_TOKEN=sbp_4a3d981a8258eacf7e9e13b486bb55ab1639e463 npx supabase functions deploy search-cnae --project-ref cxrhpfywlbtcsrgxydhn)",
+      "Bash(SUPABASE_ACCESS_TOKEN=sbp_4a3d981a8258eacf7e9e13b486bb55ab1639e463 npx supabase secrets list --project-ref cxrhpfywlbtcsrgxydhn)",
+      "Bash(SUPABASE_ACCESS_TOKEN=sbp_4a3d981a8258eacf7e9e13b486bb55ab1639e463 npx supabase functions logs search-cnae --project-ref cxrhpfywlbtcsrgxydhn)",
+      "Bash(SUPABASE_ACCESS_TOKEN=sbp_4a3d981a8258eacf7e9e13b486bb55ab1639e463 npx supabase functions deploy search-cnae --project-ref cxrhpfywlbtcsrgxydhn --no-verify-jwt)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(''''verify_jwt:'''', d[''''verify_jwt'''']\\)\")",
+      "Bash(netstat -ano)",
+      "Bash(tasklist:*)",
+      "mcp__plugin_playwright_playwright__browser_click",
+      "Bash(RUN_ID=\"VIkeqNx6rhN9I88fw\")",
+      "Bash(DATASET_ID=\"2kr96eSbqk6SzB8c8\")"
     ]
   }
 }
