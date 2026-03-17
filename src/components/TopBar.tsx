@@ -1,14 +1,18 @@
-import { Search, Loader2 } from "lucide-react";
+import { Search, Loader2, LogOut } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 interface TopBarProps {
   search: string;
   onSearchChange: (val: string) => void;
   resultCount: number;
   loading?: boolean;
+  mode: "session" | "saved";
+  onModeChange: (mode: "session" | "saved") => void;
+  onLogout?: () => void;
 }
 
-export const TopBar = ({ search, onSearchChange, resultCount, loading }: TopBarProps) => {
+export const TopBar = ({ search, onSearchChange, resultCount, loading, mode, onModeChange, onLogout }: TopBarProps) => {
   return (
     <div className="flex items-center justify-between gap-4 mb-5">
       <div>
@@ -21,6 +25,24 @@ export const TopBar = ({ search, onSearchChange, resultCount, loading }: TopBarP
         </p>
       </div>
       <div className="flex items-center gap-3">
+        <div className="flex rounded-full bg-muted p-1 text-xs">
+          <button
+            className={`px-3 py-1 rounded-full transition-colors ${
+              mode === "session" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground"
+            }`}
+            onClick={() => onModeChange("session")}
+          >
+            Sessão atual
+          </button>
+          <button
+            className={`px-3 py-1 rounded-full transition-colors ${
+              mode === "saved" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground"
+            }`}
+            onClick={() => onModeChange("saved")}
+          >
+            Meus leads
+          </button>
+        </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -30,6 +52,17 @@ export const TopBar = ({ search, onSearchChange, resultCount, loading }: TopBarP
             className="pl-9 w-64 h-9 text-sm"
           />
         </div>
+        {onLogout && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onLogout}
+            title="Sair"
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <LogOut className="h-4 w-4" />
+          </Button>
+        )}
       </div>
     </div>
   );
