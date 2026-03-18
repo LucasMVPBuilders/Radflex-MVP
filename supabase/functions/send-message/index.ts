@@ -101,7 +101,8 @@ async function sendEmailViaSendGrid(to: string, subject: string, body: string) {
   if (!res.ok) {
     const text = await res.text();
     console.error('SendGrid error:', text);
-    throw new Error(`Erro ao enviar email via SendGrid (${res.status})`);
+    const snippet = text?.slice?.(0, 500) ?? "";
+    throw new Error(`Erro ao enviar email via SendGrid (${res.status}): ${snippet}`);
   }
 
   return { status: res.status };

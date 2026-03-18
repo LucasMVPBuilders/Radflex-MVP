@@ -160,6 +160,7 @@ const Disparos = () => {
         }
       } else {
         updateItem(i, { status: "failed", error: result.error });
+        toast.error(result.error ?? "Erro ao enviar mensagem.");
         await persistLog(lead, selectedTemplate, channel, "failed", result.error);
       }
 
