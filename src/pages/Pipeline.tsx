@@ -90,6 +90,74 @@ const Pipeline = () => {
     void loadPipeline();
   }, [loadPipeline]);
 
+  // Fallback (e garante consistência): atualiza conversa do lead a cada 5s.
+  // Isso evita depender 100% do realtime (que pode atrasar ou não disparar em alguns cenários).
+  const pollingInFlightRef = useRef(false);
+  useEffect(() => {
+    if (!selectedLead) return;
+
+    const leadId = selectedLead.id;
+    let cancelled = false;
+
+    const poll = async () => {
+      if (pollingInFlightRef.current) return;
+      pollingInFlightRef.current = true;
+      try {
+        const conversation = await fetchConversationMessages(leadId);
+        if (cancelled) return;
+
+        setMessages((prev) => {
+          // Se nada mudou (mesma última msg), evita re-render desnecessário.
+          const prevLast = prev[prev.length - 1];
+          const nextLast = conversation[conversation.length - 1];
+          if (prevLast?.id === nextLast?.id) return prev;
+          return conversation;
+        });
+
+        const last = conversation[conversation.length - 1];
+        if (last) {
+          setLeads((prev) =>
+            prev.map((l) =>
+              l.id === leadId
+                ? {
+                    ...l,
+                    latestMessagePreview: last.body,
+                    latestMessageAt: last.createdAt,
+                    latestDirection: last.direction as any,
+                  }
+                : l
+            )
+          );
+
+          setSelectedLead((current) => {
+            if (!current || current.id !== leadId) return current;
+            return {
+              ...current,
+              latestMessagePreview: last.body,
+              latestMessageAt: last.createdAt,
+              latestDirection: last.direction as any,
+            };
+          });
+        }
+      } catch (error) {
+        console.error("Polling conversation error:", error);
+      } finally {
+        pollingInFlightRef.current = false;
+      }
+    };
+
+    // Executa imediatamente e depois a cada 5s
+    void poll();
+    const intervalId = window.setInterval(() => {
+      void poll();
+    }, 5000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [selectedLead?.id]);
+
   // Realtime: conversa do lead aberto + mudanças do próprio lead (stage/unread/preview)
   useEffect(() => {
     // Cancela subscription anterior
