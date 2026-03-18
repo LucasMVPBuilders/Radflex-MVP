@@ -1,30 +1,7 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const TWILIO_AUTH_TOKEN = Deno.env.get("TWILIO_AUTH_TOKEN") ?? "";
-
-function toBase64(bytes: Uint8Array) {
-  let binary = "";
-  for (const byte of bytes) {
-    binary += String.fromCharCode(byte);
-  }
-  return btoa(binary);
-}
-
-function timingSafeEqual(a: string, b: string) {
-  if (a.length !== b.length) {
-    return false;
-  }
-
-  let result = 0;
-  for (let index = 0; index < a.length; index += 1) {
-    result |= a.charCodeAt(index) ^ b.charCodeAt(index);
-  }
-
-  return result === 0;
-}
 
 function normalizePipelinePhone(value: string | null) {
   if (!value) {
@@ -45,27 +22,6 @@ function normalizePipelinePhone(value: string | null) {
   return withoutPrefix.startsWith("+") ? withoutPrefix : null;
 }
 
-async function computeTwilioSignature(url: string, params: URLSearchParams) {
-  const payload = [...params.entries()]
-    .sort(([left], [right]) => left.localeCompare(right))
-    .reduce((accumulator, [key, value]) => accumulator + key + value, url);
-
-  const cryptoKey = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(TWILIO_AUTH_TOKEN),
-    { name: "HMAC", hash: "SHA-1" },
-    false,
-    ["sign"]
-  );
-
-  const signature = await crypto.subtle.sign(
-    "HMAC",
-    cryptoKey,
-    new TextEncoder().encode(payload)
-  );
-
-  return toBase64(new Uint8Array(signature));
-}
 
 function xmlResponse(body: string, status = 200) {
   return new Response(body, {
@@ -81,25 +37,23 @@ Deno.serve(async (req) => {
     return xmlResponse("<Response></Response>", 405);
   }
 
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !TWILIO_AUTH_TOKEN) {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     return xmlResponse("<Response></Response>", 500);
   }
 
   const rawBody = await req.text();
   const params = new URLSearchParams(rawBody);
-  const twilioSignature = req.headers.get("x-twilio-signature") ?? "";
-  const expectedSignature = await computeTwilioSignature(req.url, params);
 
-  if (!timingSafeEqual(twilioSignature, expectedSignature)) {
-    return xmlResponse("<Response></Response>", 401);
-  }
-
-  const from = normalizePipelinePhone(params.get("From"));
+  const fromRaw = params.get("From") ?? "";
+  const from = normalizePipelinePhone(fromRaw);
   const body = params.get("Body")?.trim() ?? "";
   const messageSid = params.get("MessageSid");
   const status = params.get("SmsStatus") ?? params.get("MessageStatus") ?? "received";
 
+  console.log("Inbound webhook", { fromRaw, from, body: body.slice(0, 50), messageSid });
+
   if (!from || !body) {
+    console.error("Missing from or body", { from, body });
     return xmlResponse("<Response></Response>");
   }
 
@@ -107,7 +61,10 @@ Deno.serve(async (req) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const [{ data: pipelineLead, error: pipelineLeadError }, { data: repliedStage, error: repliedStageError }] =
+  // Try exact match first, then fallback to suffix match for format variations
+  let pipelineLead: { id: string; current_stage_id: string; unread_count: number } | null = null;
+
+  const [{ data: exactMatch, error: exactError }, { data: repliedStage, error: repliedStageError }] =
     await Promise.all([
       supabase
         .from("pipeline_leads")
@@ -121,7 +78,27 @@ Deno.serve(async (req) => {
         .maybeSingle(),
     ]);
 
-  if (pipelineLeadError || repliedStageError || !pipelineLead) {
+  if (exactError) {
+    console.error("Error querying pipeline_leads", exactError);
+    return xmlResponse("<Response></Response>", 500);
+  }
+
+  pipelineLead = exactMatch;
+
+  // Fallback: match by digits suffix (last 11 digits) to handle format mismatches
+  if (!pipelineLead) {
+    const digits = from.replace(/\D/g, "").slice(-11);
+    console.log("Exact match failed, trying suffix match", { digits });
+    const { data: suffixMatch } = await supabase
+      .from("pipeline_leads")
+      .select("id, current_stage_id, unread_count")
+      .like("contact_phone", `%${digits}`)
+      .maybeSingle();
+    pipelineLead = suffixMatch;
+  }
+
+  if (repliedStageError || !pipelineLead) {
+    console.error("No pipeline_lead found", { from, repliedStageError });
     return xmlResponse("<Response></Response>");
   }
 

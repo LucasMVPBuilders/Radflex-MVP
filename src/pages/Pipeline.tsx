@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   fetchConversationMessages,
   fetchPipelineLeads,
@@ -21,6 +21,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { ArrowDown, ArrowUp, MessageSquareText, Settings2, Send, RefreshCw } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 function formatTimestamp(value: string | null) {
   if (!value) {
@@ -43,6 +44,7 @@ const Pipeline = () => {
   const [composer, setComposer] = useState("");
   const [sendingMessage, setSendingMessage] = useState(false);
   const [stageDialogOpen, setStageDialogOpen] = useState(false);
+  const realtimeChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const [newStageName, setNewStageName] = useState("");
   const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
 
@@ -87,6 +89,70 @@ const Pipeline = () => {
   useEffect(() => {
     void loadPipeline();
   }, [loadPipeline]);
+
+  // Realtime: assina conversation_messages do lead aberto
+  useEffect(() => {
+    // Cancela subscription anterior
+    if (realtimeChannelRef.current) {
+      void supabase.removeChannel(realtimeChannelRef.current);
+      realtimeChannelRef.current = null;
+    }
+
+    if (!selectedLead) return;
+
+    const channel = supabase
+      .channel(`conversation:${selectedLead.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "conversation_messages",
+          filter: `pipeline_lead_id=eq.${selectedLead.id}`,
+        },
+        (payload) => {
+          const row = payload.new as any;
+          const newMsg: ConversationMessage = {
+            id: row.id,
+            pipelineLeadId: row.pipeline_lead_id,
+            channel: row.channel,
+            direction: row.direction,
+            providerMessageId: row.provider_message_id,
+            body: row.body,
+            status: row.status,
+            metadata: row.metadata,
+            createdAt: row.created_at,
+          };
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === newMsg.id)) return prev;
+            return [...prev, newMsg];
+          });
+          // Atualiza preview do lead no kanban
+          if (row.direction === "inbound") {
+            setLeads((prev) =>
+              prev.map((l) =>
+                l.id === selectedLead.id
+                  ? {
+                      ...l,
+                      latestMessagePreview: row.body,
+                      latestMessageAt: row.created_at,
+                      latestDirection: "inbound",
+                    }
+                  : l
+              )
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    realtimeChannelRef.current = channel;
+
+    return () => {
+      void supabase.removeChannel(channel);
+      realtimeChannelRef.current = null;
+    };
+  }, [selectedLead?.id]);
 
   const groupedLeads = useMemo(() => {
     return stages.filter((stage) => stage.isActive).map((stage) => ({
@@ -351,10 +417,23 @@ const Pipeline = () => {
           {selectedLead ? (
             <div className="flex h-full flex-col gap-6">
               <SheetHeader>
-                <SheetTitle>Conversa do lead</SheetTitle>
-                <SheetDescription>
-                  {selectedLead.leadSnapshot.companyName} • {selectedLead.contactPhone || selectedLead.contactEmail}
-                </SheetDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <SheetTitle>Conversa do lead</SheetTitle>
+                    <SheetDescription>
+                      {selectedLead.leadSnapshot.companyName} • {selectedLead.contactPhone || selectedLead.contactEmail}
+                    </SheetDescription>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => void loadConversation(selectedLead)}
+                    disabled={messagesLoading}
+                    title="Atualizar conversa"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${messagesLoading ? "animate-spin" : ""}`} />
+                  </Button>
+                </div>
               </SheetHeader>
 
               <div className="grid gap-4 rounded-2xl border bg-muted/20 p-4 md:grid-cols-2">
