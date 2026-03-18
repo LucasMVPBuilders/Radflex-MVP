@@ -655,6 +655,15 @@ const Pipeline = () => {
                     </Select>
                   </div>
                 </div>
+
+                {selectedLead.currentStageKey === "sdr_talking" ? (
+                  <div className="rounded-xl border bg-primary/5 p-3">
+                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                      SDR em contato
+                    </p>
+                    <p className="mt-1 text-sm font-medium">Aguardando o lead responder.</p>
+                  </div>
+                ) : null}
                 <div>
                   <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Última interação</p>
                   <p className="mt-1 text-sm font-medium">{formatTimestamp(selectedLead.latestMessageAt)}</p>

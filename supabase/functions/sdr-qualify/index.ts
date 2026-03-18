@@ -26,19 +26,34 @@ function safeNumber(value: unknown): number | null {
   return null;
 }
 
-function isSdrDecision(payload: any): payload is {
-  decision: "qualified" | "desqualified";
+function isSdrResponse(payload: any): payload is {
+  isFinal: boolean;
+  decision?: "qualified" | "desqualified";
+  nextMessage: string | null;
   summary: string;
   reason: string;
   confidence?: number;
 } {
-  return (
-    payload &&
-    (payload.decision === "qualified" || payload.decision === "desqualified") &&
-    typeof payload.summary === "string" &&
-    typeof payload.reason === "string" &&
-    (payload.confidence === undefined || typeof payload.confidence === "number")
-  );
+  if (!payload) return false;
+  if (typeof payload.isFinal !== "boolean") return false;
+  if (payload.decision !== undefined && payload.decision !== null) {
+    if (payload.decision !== "qualified" && payload.decision !== "desqualified") return false;
+  }
+  if (typeof payload.nextMessage !== "string" && payload.nextMessage !== null) return false;
+  if (typeof payload.summary !== "string") return false;
+  if (typeof payload.reason !== "string") return false;
+  if (payload.confidence !== undefined && typeof payload.confidence !== "number") return false;
+
+  if (payload.isFinal) {
+    return payload.decision === "qualified" || payload.decision === "desqualified";
+  }
+
+  return true;
+}
+
+function getProviderMessageId(fromSendResult: any): string | null {
+  const sid = fromSendResult?.sid;
+  return typeof sid === "string" ? sid : null;
 }
 
 Deno.serve(async (req) => {
@@ -130,7 +145,7 @@ Deno.serve(async (req) => {
   const { data: stages, error: stagesError } = await supabase
     .from("pipeline_stages")
     .select("id,key,name")
-    .in("key", ["qualified", "desqualified"]);
+    .in("key", ["qualified", "desqualified", "sdr_talking"]);
 
   if (stagesError) {
     return jsonResponse({ success: false, error: stagesError.message }, 500);
@@ -138,10 +153,11 @@ Deno.serve(async (req) => {
 
   const qualifiedStage = stages?.find((s: any) => s.key === "qualified");
   const desqualifiedStage = stages?.find((s: any) => s.key === "desqualified");
+  const sdrTalkingStage = stages?.find((s: any) => s.key === "sdr_talking");
 
-  if (!qualifiedStage || !desqualifiedStage) {
+  if (!qualifiedStage || !desqualifiedStage || !sdrTalkingStage) {
     return jsonResponse(
-      { success: false, error: "Missing pipeline stage ids for qualified/desqualified" },
+      { success: false, error: "Missing pipeline stage ids for SDR flow" },
       500
     );
   }
@@ -180,6 +196,11 @@ Deno.serve(async (req) => {
       temperature: 0.2,
       messages: [
         {
+          role: "system",
+          content:
+            "Responda SOMENTE com JSON válido (sem texto extra) no formato: {\"isFinal\": boolean, \"decision\": \"qualified\"|\"desqualified\" (somente quando isFinal=true), \"nextMessage\": string|null, \"summary\": string, \"reason\": string, \"confidence\": number opcional}.",
+        },
+        {
           role: "user",
           content: filledPrompt,
         },
@@ -202,43 +223,133 @@ Deno.serve(async (req) => {
   const openaiJson = await openaiRes.json();
   const content = openaiJson?.choices?.[0]?.message?.content;
 
-  let decisionJson: any = null;
+  let sdrJson: any = null;
   try {
-    decisionJson = typeof content === "string" ? JSON.parse(content) : null;
+    sdrJson = typeof content === "string" ? JSON.parse(content) : null;
   } catch {
-    decisionJson = null;
+    sdrJson = null;
   }
 
-  if (!decisionJson || !isSdrDecision(decisionJson)) {
+  if (!sdrJson || !isSdrResponse(sdrJson)) {
     return jsonResponse(
       {
         success: false,
         error: "Invalid OpenAI JSON output",
-        received: decisionJson,
+        received: sdrJson,
       },
       500
     );
   }
 
   const now = new Date().toISOString();
-  const targetStage = decisionJson.decision === "qualified" ? qualifiedStage : desqualifiedStage;
+  const targetStage = sdrJson.isFinal
+    ? sdrJson.decision === "qualified"
+      ? qualifiedStage
+      : desqualifiedStage
+    : sdrTalkingStage;
 
-  const sdrLastJson = {
-    decision: decisionJson.decision,
-    confidence: safeNumber(decisionJson.confidence) ?? undefined,
-    summary: decisionJson.summary,
-    reason: decisionJson.reason,
+  const nextMessage = sdrJson.nextMessage?.toString?.() ?? null;
+
+  const leadPrimaryChannel = lead.primary_channel as "whatsapp" | "email";
+  const to =
+    leadPrimaryChannel === "whatsapp" ? (lead.contact_phone as string | null) : (lead.contact_email as string | null);
+  const outboundText = nextMessage && nextMessage.trim() ? nextMessage.trim() : null;
+
+  // 1) Envia mensagem (se houver) e registra como outbound
+  let providerMessageId: string | null = null;
+  let providerStatus: string = "queued";
+  let providerMetadata: Record<string, unknown> | null = null;
+
+  if (outboundText) {
+    if (!to) {
+      return jsonResponse(
+        { success: false, error: `Lead sem destino para canal ${leadPrimaryChannel}` },
+        500
+      );
+    }
+
+    const subject =
+      leadPrimaryChannel === "email" ? `Atualizacao - ${companyName || "lead"}` : undefined;
+
+    const sendRes = await fetch(`${SUPABASE_URL}/functions/v1/send-message`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        channel: leadPrimaryChannel,
+        to,
+        message: outboundText,
+        ...(subject ? { subject } : {}),
+      }),
+    });
+
+    const sendJson = await sendRes.json().catch(() => null);
+    if (!sendRes.ok || !sendJson?.success) {
+      return jsonResponse(
+        {
+          success: false,
+          error: `send-message failed (${sendRes.status}): ${sendJson?.error ?? sendJson ? "unknown" : "no response"}`,
+        },
+        500
+      );
+    }
+
+    providerMessageId = getProviderMessageId(sendJson.data);
+    providerStatus = typeof sendJson.data?.status === "string" ? sendJson.data.status : providerStatus;
+    providerMetadata =
+      sendJson.data && typeof sendJson.data === "object"
+        ? (sendJson.data as Record<string, unknown>)
+        : null;
+
+    // Registro no historico
+    const { error: insertError } = await supabase.from("conversation_messages").insert({
+      pipeline_lead_id: pipelineLeadId,
+      channel: leadPrimaryChannel,
+      direction: "outbound",
+      provider_message_id: providerMessageId,
+      body: outboundText,
+      status: providerStatus,
+      metadata: providerMetadata,
+    });
+
+    if (insertError) {
+      return jsonResponse({ success: false, error: insertError.message }, 500);
+    }
+
+    // Atualiza preview do lead
+    const { error: updateLatestError } = await supabase
+      .from("pipeline_leads")
+      .update({
+        latest_message_preview: outboundText,
+        latest_message_at: now,
+        latest_direction: "outbound",
+      })
+      .eq("id", pipelineLeadId);
+
+    if (updateLatestError) {
+      return jsonResponse({ success: false, error: updateLatestError.message }, 500);
+    }
+  }
+
+  // 2) Atualiza etapa (e salva resumo somente quando final)
+  const updatePayload: Record<string, unknown> = {
+    current_stage_id: targetStage.id,
   };
+
+  if (sdrJson.isFinal) {
+    updatePayload.sdr_last_summary = sdrJson.summary;
+    updatePayload.sdr_last_reason = sdrJson.reason;
+    updatePayload.sdr_last_json = {
+      decision: sdrJson.decision,
+      confidence: safeNumber(sdrJson.confidence) ?? undefined,
+      summary: sdrJson.summary,
+      reason: sdrJson.reason,
+    };
+    updatePayload.sdr_last_run_at = now;
+  }
 
   const { error: updateError } = await supabase
     .from("pipeline_leads")
-    .update({
-      current_stage_id: targetStage.id,
-      sdr_last_summary: decisionJson.summary,
-      sdr_last_reason: decisionJson.reason,
-      sdr_last_json: sdrLastJson,
-      sdr_last_run_at: now,
-    })
+    .update(updatePayload)
     .eq("id", pipelineLeadId);
 
   if (updateError) {
@@ -248,10 +359,12 @@ Deno.serve(async (req) => {
   return jsonResponse({
     success: true,
     data: {
-      decision: decisionJson.decision,
-      summary: decisionJson.summary,
-      reason: decisionJson.reason,
-      confidence: safeNumber(decisionJson.confidence) ?? undefined,
+      isFinal: sdrJson.isFinal,
+      decision: sdrJson.decision,
+      nextMessage: sdrJson.nextMessage,
+      summary: sdrJson.summary,
+      reason: sdrJson.reason,
+      confidence: safeNumber(sdrJson.confidence) ?? undefined,
     },
   });
 });
