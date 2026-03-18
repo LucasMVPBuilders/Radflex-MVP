@@ -1,4 +1,13 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+// @ts-ignore - Deno JSR import (resolved at runtime in Supabase)
+import { createClient } from "jsr:@supabase/supabase-js@2";
+
+declare const Deno: {
+  env: {
+    get: (name: string) => string | undefined;
+  };
+  serve: (handler: (req: Request) => Response | Promise<Response>) => void;
+};
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -146,6 +155,22 @@ Deno.serve(async (req) => {
   if (updateError) {
     return xmlResponse("<Response></Response>", 500);
   }
+
+  // SDR: qualifica/desqualifica o lead (roda async mas antes do retorno do webhook).
+  // Recomendacao: deploy do `sdr-qualify` com `verify_jwt: false` para permitir chamada interna.
+  // Importante: nao bloquear o webhook (Twilio espera resposta rapida).
+  void fetch(`${SUPABASE_URL}/functions/v1/sdr-qualify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pipelineLeadId: pipelineLead.id }),
+  })
+    .then(async (sdrRes) => {
+      if (!sdrRes.ok) {
+        const text = await sdrRes.text().catch(() => "");
+        console.error("sdr-qualify call failed", sdrRes.status, text.slice(0, 300));
+      }
+    })
+    .catch((e) => console.error("sdr-qualify call error:", e));
 
   return xmlResponse("<Response></Response>");
 });

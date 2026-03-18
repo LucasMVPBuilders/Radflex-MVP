@@ -46,6 +46,11 @@ export type PipelineLead = {
   latestDirection: "inbound" | "outbound" | null;
   unreadCount: number;
   leadSnapshot: PipelineLeadSnapshot;
+  // SDR (qualificacao)
+  sdrLastSummary: string | null;
+  sdrLastReason: string | null;
+  sdrLastJson: Record<string, unknown> | null;
+  sdrLastRunAt: string | null;
   createdAt: string;
   updatedAt: string;
 };

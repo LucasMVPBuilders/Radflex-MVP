@@ -1,4 +1,4 @@
-import { Search, BarChart3, Download, Plus, X, Send, KanbanSquare } from "lucide-react";
+import { Search, BarChart3, Download, Plus, X, Send, KanbanSquare, Bot, MessageCircle } from "lucide-react";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -83,12 +83,28 @@ export const AppSidebar = ({
           Disparos
         </NavLink>
         <NavLink
+          to="/test-chat"
+          className="flex items-center gap-2 px-3 py-2 rounded text-sm text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+          activeClassName="bg-sidebar-primary text-sidebar-primary-foreground"
+        >
+          <MessageCircle className="h-4 w-4" />
+          Teste Chat
+        </NavLink>
+        <NavLink
           to="/pipeline"
           className="flex items-center gap-2 px-3 py-2 rounded text-sm text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
           activeClassName="bg-sidebar-primary text-sidebar-primary-foreground"
         >
           <KanbanSquare className="h-4 w-4" />
           Pipeline
+        </NavLink>
+        <NavLink
+          to="/sdr"
+          className="flex items-center gap-2 px-3 py-2 rounded text-sm text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+          activeClassName="bg-sidebar-primary text-sidebar-primary-foreground"
+        >
+          <Bot className="h-4 w-4" />
+          SDR
         </NavLink>
       </div>
 

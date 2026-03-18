@@ -23,6 +23,10 @@ vi.mock("./pages/Pipeline.tsx", () => ({
   default: () => <div>Pipeline Page</div>,
 }));
 
+vi.mock("./pages/SDRConfig.tsx", () => ({
+  default: () => <div>SDR Config Page</div>,
+}));
+
 vi.mock("./pages/UpdatePassword.tsx", () => ({
   default: () => <div>Update Password Page</div>,
 }));

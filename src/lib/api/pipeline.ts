@@ -97,6 +97,14 @@ function mapPipelineLead(
     latestDirection: row.latest_direction as "inbound" | "outbound" | null,
     unreadCount: row.unread_count,
     leadSnapshot: snapshot,
+    // SDR fields (novos columns no schema)
+    sdrLastSummary: (row as any).sdr_last_summary ?? null,
+    sdrLastReason: (row as any).sdr_last_reason ?? null,
+    sdrLastJson:
+      (row as any).sdr_last_json && typeof (row as any).sdr_last_json === "object"
+        ? ((row as any).sdr_last_json as Record<string, unknown>)
+        : null,
+    sdrLastRunAt: (row as any).sdr_last_run_at ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

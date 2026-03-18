@@ -311,6 +311,10 @@ const Pipeline = () => {
                     latestMessageAt: row.latest_message_at ?? l.latestMessageAt,
                     latestDirection: (row.latest_direction as any) ?? l.latestDirection,
                     unreadCount: Number(row.unread_count ?? 0),
+                    sdrLastSummary: row.sdr_last_summary ?? l.sdrLastSummary,
+                    sdrLastReason: row.sdr_last_reason ?? l.sdrLastReason,
+                    sdrLastJson: row.sdr_last_json ?? l.sdrLastJson,
+                    sdrLastRunAt: row.sdr_last_run_at ?? l.sdrLastRunAt,
                   }
                 : l
             )
@@ -328,6 +332,10 @@ const Pipeline = () => {
               latestMessageAt: row.latest_message_at ?? current.latestMessageAt,
               latestDirection: (row.latest_direction as any) ?? current.latestDirection,
               unreadCount: Number(row.unread_count ?? 0),
+              sdrLastSummary: row.sdr_last_summary ?? current.sdrLastSummary,
+              sdrLastReason: row.sdr_last_reason ?? current.sdrLastReason,
+              sdrLastJson: row.sdr_last_json ?? current.sdrLastJson,
+              sdrLastRunAt: row.sdr_last_run_at ?? current.sdrLastRunAt,
             };
           });
         }
@@ -651,6 +659,29 @@ const Pipeline = () => {
                   <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Última interação</p>
                   <p className="mt-1 text-sm font-medium">{formatTimestamp(selectedLead.latestMessageAt)}</p>
                 </div>
+              </div>
+
+              <div className="rounded-2xl border bg-muted/20 p-4">
+                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                  Resumo do SDR
+                </p>
+                {selectedLead.sdrLastSummary ? (
+                  <div className="mt-2 space-y-2">
+                    <p className="text-sm font-medium">{selectedLead.sdrLastSummary}</p>
+                    {selectedLead.sdrLastReason ? (
+                      <p className="text-xs text-muted-foreground whitespace-pre-wrap">
+                        Motivo: {selectedLead.sdrLastReason}
+                      </p>
+                    ) : null}
+                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                      Última execução: {formatTimestamp(selectedLead.sdrLastRunAt)}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    O SDR ainda não qualificou este lead.
+                  </p>
+                )}
               </div>
 
               <div className="flex-1 space-y-3 overflow-y-auto rounded-2xl border bg-background p-4">
