@@ -11,6 +11,35 @@ interface SendMessageArgs {
 interface SendMessageResult {
   success: boolean;
   error?: string;
+  data?: Record<string, unknown>;
+}
+
+async function getSupabaseFunctionErrorMessage(error: unknown) {
+  const fallbackMessage =
+    error instanceof Error
+      ? error.message
+      : "Erro de rede ao chamar Edge Function";
+
+  const context = (error as { context?: { json?: () => Promise<unknown> } } | null)?.context;
+  if (!context?.json) {
+    return fallbackMessage;
+  }
+
+  try {
+    const payload = await context.json();
+    if (
+      payload &&
+      typeof payload === "object" &&
+      "error" in payload &&
+      typeof payload.error === "string"
+    ) {
+      return payload.error;
+    }
+  } catch {
+    // Ignore context parsing failures and fall back to the original message.
+  }
+
+  return fallbackMessage;
 }
 
 export async function sendMessage(
@@ -21,13 +50,18 @@ export async function sendMessage(
   });
 
   if (error) {
-    // FunctionsHttpError / FunctionsRelayError / FunctionsFetchError all have .message
-    return { success: false, error: error.message ?? "Erro de rede ao chamar Edge Function" };
+    return { success: false, error: await getSupabaseFunctionErrorMessage(error) };
   }
 
   if (!data?.success) {
     return { success: false, error: data?.error ?? "Erro desconhecido" };
   }
 
-  return { success: true };
+  return {
+    success: true,
+    data:
+      data.data && typeof data.data === "object"
+        ? (data.data as Record<string, unknown>)
+        : undefined,
+  };
 }

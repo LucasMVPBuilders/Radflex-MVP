@@ -33,7 +33,8 @@
       "Bash(tasklist:*)",
       "mcp__plugin_playwright_playwright__browser_click",
       "Bash(RUN_ID=\"VIkeqNx6rhN9I88fw\")",
-      "Bash(DATASET_ID=\"2kr96eSbqk6SzB8c8\")"
+      "Bash(DATASET_ID=\"2kr96eSbqk6SzB8c8\")",
+      "Bash(bash \"C:/Users/lukas/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.2/skills/brainstorming/scripts/start-server.sh\" --project-dir \"c:/Users/lukas/Desktop/MVP Builders/Radiflex/Radiflex\")"
     ]
   }
 }

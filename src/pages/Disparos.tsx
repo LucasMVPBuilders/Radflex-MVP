@@ -13,6 +13,7 @@ import {
 } from "@/lib/dispatch/types";
 import { normalizeContact, interpolate } from "@/lib/dispatch/utils";
 import { sendMessage } from "@/lib/api/sendMessage";
+import { registerDispatchToPipeline } from "@/lib/api/pipeline";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Send, AlertTriangle } from "lucide-react";
@@ -144,7 +145,19 @@ const Disparos = () => {
 
       if (result.success) {
         updateItem(i, { status: "sent" });
-        await persistLog(lead, selectedTemplate, channel, "sent");
+        const dispatchLogId = await persistLog(lead, selectedTemplate, channel, "sent");
+        try {
+          await registerDispatchToPipeline({
+            lead,
+            leadSource,
+            channel,
+            dispatchLogId,
+            messageBody: message,
+            providerData: result.data,
+          });
+        } catch (pipelineError) {
+          console.error("pipeline sync error:", pipelineError);
+        }
       } else {
         updateItem(i, { status: "failed", error: result.error });
         await persistLog(lead, selectedTemplate, channel, "failed", result.error);
@@ -180,7 +193,17 @@ const Disparos = () => {
       ...(status === "sent" && { sent_at: new Date().toISOString() }),
       ...(errorMsg && { error_msg: errorMsg }),
     };
-    await (supabase as any).from("dispatch_logs").insert(log);
+    const { data, error } = await (supabase as any)
+      .from("dispatch_logs")
+      .insert(log)
+      .select("id")
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return (data?.id as string | undefined) ?? null;
   };
 
   const handlePause = () => {

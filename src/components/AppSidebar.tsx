@@ -1,4 +1,4 @@
-import { Search, BarChart3, Download, Plus, X, Send } from "lucide-react";
+import { Search, BarChart3, Download, Plus, X, Send, KanbanSquare } from "lucide-react";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -81,6 +81,14 @@ export const AppSidebar = ({
         >
           <Send className="h-4 w-4" />
           Disparos
+        </NavLink>
+        <NavLink
+          to="/pipeline"
+          className="flex items-center gap-2 px-3 py-2 rounded text-sm text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+          activeClassName="bg-sidebar-primary text-sidebar-primary-foreground"
+        >
+          <KanbanSquare className="h-4 w-4" />
+          Pipeline
         </NavLink>
       </div>
 

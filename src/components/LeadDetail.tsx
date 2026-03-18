@@ -1,5 +1,5 @@
 import { Lead } from "@/data/types";
-import { X, Mail, Phone, Building2, MapPin, Hash, DollarSign, Globe, Star, Send } from "lucide-react";
+import { X, Mail, Phone, Building2, MapPin, Hash, DollarSign, Globe, Star, Send, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -7,12 +7,13 @@ import { useNavigate } from "react-router-dom";
 interface LeadDetailProps {
   lead: Lead | null;
   onClose: () => void;
+  onEdit?: (lead: Lead) => void;
 }
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(value);
 
-export const LeadDetail = ({ lead, onClose }: LeadDetailProps) => {
+export const LeadDetail = ({ lead, onClose, onEdit }: LeadDetailProps) => {
   const navigate = useNavigate();
 
   const goToDisparos = (channel: "whatsapp" | "email") => {
@@ -40,9 +41,20 @@ export const LeadDetail = ({ lead, onClose }: LeadDetailProps) => {
           >
             <div className="px-6 py-5 border-b border-border flex items-center justify-between">
               <h2 className="font-semibold text-lg text-foreground">Detalhes do Lead</h2>
-              <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
-                <X className="h-5 w-5" />
-              </button>
+              <div className="flex items-center gap-1">
+                {onEdit && lead && (
+                  <button
+                    onClick={() => onEdit(lead)}
+                    className="text-muted-foreground hover:text-foreground transition-colors p-1"
+                    title="Editar lead"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                )}
+                <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors p-1">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
 
             <div className="px-6 py-5 space-y-6">

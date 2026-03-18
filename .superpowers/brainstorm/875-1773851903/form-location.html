@@ -1,0 +1,70 @@
+<h2>Como abre o formulário de criação?</h2>
+<p class="subtitle">Escolha a experiência de criar um lead manualmente</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Modal (dialog por cima da tabela)</h3>
+      <p>A tabela fica ao fundo, um painel centralizado abre com o formulário. Sem troca de rota.</p>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-header">Página principal</div>
+        <div class="mockup-body" style="position:relative;padding:0;min-height:160px;background:#f8fafc">
+          <!-- tabela ao fundo, opaca -->
+          <div style="padding:10px;opacity:0.3;font-size:11px">
+            <div style="display:flex;gap:8px;margin-bottom:8px">
+              <span style="border:1px solid #cbd5e1;padding:2px 8px;border-radius:999px">📞 Com telefone</span>
+              <span style="border:1px solid #cbd5e1;padding:2px 8px;border-radius:999px">🌐 Com site</span>
+            </div>
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:8px">
+              <div style="border-bottom:1px solid #e2e8f0;padding:4px 0;color:#64748b;font-size:10px">EMPRESA · CNAE · UF · STATUS</div>
+              <div style="padding:4px 0">Clínica Previmagem · 8640 · PE</div>
+              <div style="padding:4px 0">Tesla Diagnóstico · 8640 · DF</div>
+            </div>
+          </div>
+          <!-- overlay -->
+          <div style="position:absolute;inset:0;background:rgba(0,0,0,0.4);border-radius:6px;display:flex;align-items:center;justify-content:center">
+            <div style="background:white;border-radius:8px;padding:16px;width:220px;box-shadow:0 8px 24px rgba(0,0,0,0.2)">
+              <div style="font-weight:700;font-size:13px;margin-bottom:10px">➕ Criar Lead Manual</div>
+              <input class="mock-input" placeholder="Nome da empresa" style="width:100%;margin-bottom:6px;font-size:11px" />
+              <input class="mock-input" placeholder="Telefone" style="width:100%;margin-bottom:6px;font-size:11px" />
+              <input class="mock-input" placeholder="Email" style="width:100%;margin-bottom:6px;font-size:11px" />
+              <div style="display:flex;gap:6px;margin-top:8px">
+                <button class="mock-button" style="background:#5B2ECC;color:white;font-size:11px;padding:4px 10px">Salvar</button>
+                <button class="mock-button" style="font-size:11px;padding:4px 10px">Cancelar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Página separada (/leads/new)</h3>
+      <p>Navega para uma tela dedicada com formulário completo e botão voltar. Mais espaço para campos.</p>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-header">Página /leads/new</div>
+        <div class="mockup-body" style="padding:12px;font-size:11px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+            <span style="color:#5B2ECC;cursor:pointer">← Voltar</span>
+            <span style="font-weight:700;font-size:13px">Criar Lead Manual</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <input class="mock-input" placeholder="Nome da empresa *" style="font-size:11px" />
+            <input class="mock-input" placeholder="CNAE" style="font-size:11px" />
+            <input class="mock-input" placeholder="Telefone" style="font-size:11px" />
+            <input class="mock-input" placeholder="Email" style="font-size:11px" />
+            <input class="mock-input" placeholder="Cidade" style="font-size:11px" />
+            <input class="mock-input" placeholder="UF" style="font-size:11px" />
+            <input class="mock-input" placeholder="Site" style="font-size:11px" />
+            <input class="mock-input" placeholder="Endereço" style="font-size:11px" />
+          </div>
+          <button class="mock-button" style="background:#5B2ECC;color:white;margin-top:12px;font-size:11px;padding:5px 14px">Salvar Lead</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

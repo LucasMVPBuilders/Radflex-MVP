@@ -1,0 +1,67 @@
+<h2>Onde fica o botão "Criar Lead Manual"?</h2>
+<p class="subtitle">Escolha onde o usuário inicia a criação de um lead manualmente</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Botão na TopBar</h3>
+      <p>Ao lado do toggle Sessão/Meus Leads, um botão <strong>+ Lead</strong> sempre visível no topo da tela principal.</p>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-header">TopBar</div>
+        <div class="mockup-body" style="display:flex;align-items:center;gap:12px;padding:10px">
+          <span style="background:#e2e8f0;padding:4px 12px;border-radius:6px;font-size:12px">Sessão atual</span>
+          <span style="background:#5B2ECC;color:white;padding:4px 12px;border-radius:6px;font-size:12px">Meus leads</span>
+          <span style="flex:1"></span>
+          <span style="background:#5B2ECC;color:white;padding:4px 14px;border-radius:6px;font-size:12px;font-weight:600">+ Lead</span>
+          <span style="background:#e2e8f0;padding:4px 12px;border-radius:6px;font-size:12px">🔍 Buscar</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Botão acima da tabela</h3>
+      <p>Um botão <strong>+ Criar Lead</strong> posicionado na linha dos filtros de qualidade (Com telefone, Com site…), visível somente em modo "Meus Leads".</p>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-header">Filtros de qualidade</div>
+        <div class="mockup-body" style="display:flex;flex-wrap:wrap;gap:8px;padding:10px;align-items:center">
+          <span style="border:1px solid #cbd5e1;padding:3px 10px;border-radius:999px;font-size:11px">📞 Com telefone 489</span>
+          <span style="border:1px solid #cbd5e1;padding:3px 10px;border-radius:999px;font-size:11px">🌐 Com site 418</span>
+          <span style="border:1px solid #cbd5e1;padding:3px 10px;border-radius:999px;font-size:11px">⭐ Com avaliação 487</span>
+          <span style="flex:1"></span>
+          <span style="background:#5B2ECC;color:white;padding:4px 14px;border-radius:6px;font-size:12px;font-weight:600">+ Criar Lead</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Linha vazia na tabela (inline)</h3>
+      <p>A última linha da tabela é uma linha de criação — o usuário digita diretamente nas células sem abrir modal.</p>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-header">Tabela de Leads</div>
+        <div class="mockup-body" style="padding:0">
+          <table style="width:100%;font-size:11px;border-collapse:collapse">
+            <tr style="background:#f8fafc">
+              <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0">Clínica Previmagem</td>
+              <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0">8640-2/05</td>
+              <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;color:#16a34a">R$ 7.697.927</td>
+              <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0">PE</td>
+            </tr>
+            <tr style="background:#f0fdf4;border:1.5px dashed #86efac">
+              <td style="padding:6px 10px"><input class="mock-input" placeholder="Nome da empresa..." style="width:140px;font-size:11px" /></td>
+              <td style="padding:6px 10px"><input class="mock-input" placeholder="CNAE" style="width:70px;font-size:11px" /></td>
+              <td style="padding:6px 10px"><input class="mock-input" placeholder="UF" style="width:40px;font-size:11px" /></td>
+              <td style="padding:6px 10px"><span style="color:#5B2ECC;font-size:11px;cursor:pointer">✓ Salvar</span></td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

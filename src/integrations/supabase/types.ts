@@ -136,6 +136,126 @@ export type Database = {
           created_at?: string
         }
       }
+      pipeline_stages: {
+        Row: {
+          id: string
+          key: string
+          name: string
+          position: number
+          color: string | null
+          is_system: boolean
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          key: string
+          name: string
+          position: number
+          color?: string | null
+          is_system?: boolean
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          key?: string
+          name?: string
+          position?: number
+          color?: string | null
+          is_system?: boolean
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      pipeline_leads: {
+        Row: {
+          id: string
+          lead_id: string
+          dispatch_log_id: string | null
+          current_stage_id: string
+          primary_channel: string
+          contact_phone: string | null
+          contact_email: string | null
+          latest_message_preview: string | null
+          latest_message_at: string | null
+          latest_direction: string | null
+          unread_count: number
+          lead_snapshot: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          lead_id: string
+          dispatch_log_id?: string | null
+          current_stage_id: string
+          primary_channel: string
+          contact_phone?: string | null
+          contact_email?: string | null
+          latest_message_preview?: string | null
+          latest_message_at?: string | null
+          latest_direction?: string | null
+          unread_count?: number
+          lead_snapshot: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          lead_id?: string
+          dispatch_log_id?: string | null
+          current_stage_id?: string
+          primary_channel?: string
+          contact_phone?: string | null
+          contact_email?: string | null
+          latest_message_preview?: string | null
+          latest_message_at?: string | null
+          latest_direction?: string | null
+          unread_count?: number
+          lead_snapshot?: Json
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      conversation_messages: {
+        Row: {
+          id: string
+          pipeline_lead_id: string
+          channel: string
+          direction: string
+          provider_message_id: string | null
+          body: string
+          status: string | null
+          metadata: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          pipeline_lead_id: string
+          channel: string
+          direction: string
+          provider_message_id?: string | null
+          body: string
+          status?: string | null
+          metadata?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          pipeline_lead_id?: string
+          channel?: string
+          direction?: string
+          provider_message_id?: string | null
+          body?: string
+          status?: string | null
+          metadata?: Json | null
+          created_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never

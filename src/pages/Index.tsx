@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, SlidersHorizontal, Phone, Mail, Globe, Star, PhoneOff, CheckCircle2 } from "lucide-react";
+import { RefreshCw, SlidersHorizontal, Phone, Mail, Globe, Star, PhoneOff, CheckCircle2, Plus } from "lucide-react";
+import { LeadFormPanel } from "@/components/LeadFormPanel";
 
 const QUALITY_FILTERS: {
   id: string;
@@ -59,6 +60,8 @@ const Index = () => {
   const [activeCnaes, setActiveCnaes] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  // null = fechado, "new" = criar, Lead = editar
+  const [formLead, setFormLead] = useState<Lead | null | "new">(null);
   const [allLeads, setAllLeads] = useState<Lead[]>([]);
   const [savedLeads, setSavedLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(false);
@@ -530,9 +533,18 @@ const Index = () => {
         )}
 
         {/* Filtros de exibição no modo "Meus leads" */}
-        {mode === "saved" && baseLeads.length > 0 && (
+        {mode === "saved" && (
           <div className="flex items-center gap-2 flex-wrap mb-3">
-            <span className="text-xs text-muted-foreground font-medium shrink-0">Mostrar:</span>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5 h-7 text-xs shrink-0"
+              onClick={() => setFormLead("new")}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Lead manual
+            </Button>
+            {baseLeads.length > 0 && <span className="text-xs text-muted-foreground font-medium shrink-0">Mostrar:</span>}
             {QUALITY_FILTERS.map((f) => {
               const isActive = qualityFilters.includes(f.id);
               const count = baseLeads.filter(f.pred).length;
@@ -564,7 +576,33 @@ const Index = () => {
         )}
         <LeadsTable leads={filteredLeads} onSelectLead={setSelectedLead} loading={loading} />
       </main>
-      <LeadDetail lead={selectedLead} onClose={() => setSelectedLead(null)} />
+      <LeadDetail
+        lead={selectedLead}
+        onClose={() => setSelectedLead(null)}
+        onEdit={(lead) => {
+          setSelectedLead(null);
+          setFormLead(lead);
+        }}
+      />
+      {formLead !== null && (
+        <LeadFormPanel
+          lead={formLead === "new" ? null : formLead}
+          onClose={() => setFormLead(null)}
+          onSaved={(saved) => {
+            setSavedLeads((prev) => {
+              const exists = prev.some((l) => l.id === saved.id);
+              return exists
+                ? prev.map((l) => (l.id === saved.id ? saved : l))
+                : [saved, ...prev];
+            });
+            setFormLead(null);
+          }}
+          onDeleted={(id) => {
+            setSavedLeads((prev) => prev.filter((l) => l.id !== id));
+            setFormLead(null);
+          }}
+        />
+      )}
     </div>
   );
 };
