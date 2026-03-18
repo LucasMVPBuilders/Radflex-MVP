@@ -90,7 +90,7 @@ const Pipeline = () => {
     void loadPipeline();
   }, [loadPipeline]);
 
-  // Realtime: assina conversation_messages do lead aberto
+  // Realtime: conversa do lead aberto + mudanças do próprio lead (stage/unread/preview)
   useEffect(() => {
     // Cancela subscription anterior
     if (realtimeChannelRef.current) {
@@ -100,15 +100,18 @@ const Pipeline = () => {
 
     if (!selectedLead) return;
 
+    const leadId = selectedLead.id;
+    const stagesById = new Map(stages.map((s) => [s.id, s]));
+
     const channel = supabase
-      .channel(`conversation:${selectedLead.id}`)
+      .channel(`pipeline:${leadId}`)
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
           table: "conversation_messages",
-          filter: `pipeline_lead_id=eq.${selectedLead.id}`,
+          filter: `pipeline_lead_id=eq.${leadId}`,
         },
         (payload) => {
           const row = payload.new as any;
@@ -123,25 +126,142 @@ const Pipeline = () => {
             metadata: row.metadata,
             createdAt: row.created_at,
           };
+
           setMessages((prev) => {
+            // Evita duplicar caso o INSERT chegue depois do fetch inicial
             if (prev.some((m) => m.id === newMsg.id)) return prev;
-            return [...prev, newMsg];
-          });
-          // Atualiza preview do lead no kanban
-          if (row.direction === "inbound") {
-            setLeads((prev) =>
-              prev.map((l) =>
-                l.id === selectedLead.id
-                  ? {
-                      ...l,
-                      latestMessagePreview: row.body,
-                      latestMessageAt: row.created_at,
-                      latestDirection: "inbound",
-                    }
-                  : l
-              )
+            const merged = [...prev, newMsg];
+            return merged.sort(
+              (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
             );
-          }
+          });
+
+          // Fallback: atualiza preview (kanban + drawer) só com base na mensagem.
+          // unread_count e stage virão do UPDATE em `pipeline_leads` (assinatura separada).
+          setLeads((prev) =>
+            prev.map((l) =>
+              l.id === leadId
+                ? {
+                    ...l,
+                    latestMessagePreview: row.body ?? l.latestMessagePreview,
+                    latestMessageAt: row.created_at ?? l.latestMessageAt,
+                    latestDirection: (row.direction as any) ?? l.latestDirection,
+                  }
+                : l
+            )
+          );
+          setSelectedLead((current) => {
+            if (!current || current.id !== leadId) return current;
+            return {
+              ...current,
+              latestMessagePreview: row.body ?? current.latestMessagePreview,
+              latestMessageAt: row.created_at ?? current.latestMessageAt,
+              latestDirection: (row.direction as any) ?? current.latestDirection,
+            };
+          });
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "conversation_messages",
+          filter: `pipeline_lead_id=eq.${leadId}`,
+        },
+        (payload) => {
+          const row = payload.new as any;
+          const updatedMsg: ConversationMessage = {
+            id: row.id,
+            pipelineLeadId: row.pipeline_lead_id,
+            channel: row.channel,
+            direction: row.direction,
+            providerMessageId: row.provider_message_id,
+            body: row.body,
+            status: row.status,
+            metadata: row.metadata,
+            createdAt: row.created_at,
+          };
+
+          setMessages((prev) => {
+            const idx = prev.findIndex((m) => m.id === updatedMsg.id);
+            const merged =
+              idx === -1
+                ? [...prev, updatedMsg]
+                : prev.map((m) => (m.id === updatedMsg.id ? updatedMsg : m));
+            return merged.sort(
+              (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+            );
+          });
+
+          // Fallback semelhante ao INSERT
+          setLeads((prev) =>
+            prev.map((l) =>
+              l.id === leadId
+                ? {
+                    ...l,
+                    latestMessagePreview: row.body ?? l.latestMessagePreview,
+                    latestMessageAt: row.created_at ?? l.latestMessageAt,
+                    latestDirection: (row.direction as any) ?? l.latestDirection,
+                  }
+                : l
+            )
+          );
+          setSelectedLead((current) => {
+            if (!current || current.id !== leadId) return current;
+            return {
+              ...current,
+              latestMessagePreview: row.body ?? current.latestMessagePreview,
+              latestMessageAt: row.created_at ?? current.latestMessageAt,
+              latestDirection: (row.direction as any) ?? current.latestDirection,
+            };
+          });
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "pipeline_leads",
+          filter: `id=eq.${leadId}`,
+        },
+        (payload) => {
+          const row = payload.new as any;
+          const stage = stagesById.get(row.current_stage_id);
+
+          // Atualiza o kanban
+          setLeads((prev) =>
+            prev.map((l) =>
+              l.id === leadId
+                ? {
+                    ...l,
+                    currentStageId: row.current_stage_id,
+                    currentStageKey: stage?.key ?? l.currentStageKey,
+                    currentStageName: stage?.name ?? l.currentStageName,
+                    latestMessagePreview: row.latest_message_preview ?? l.latestMessagePreview,
+                    latestMessageAt: row.latest_message_at ?? l.latestMessageAt,
+                    latestDirection: (row.latest_direction as any) ?? l.latestDirection,
+                    unreadCount: Number(row.unread_count ?? 0),
+                  }
+                : l
+            )
+          );
+
+          // Atualiza o drawer (select + última interação + badge interna, se existir)
+          setSelectedLead((current) => {
+            if (!current || current.id !== leadId) return current;
+            return {
+              ...current,
+              currentStageId: row.current_stage_id,
+              currentStageKey: stage?.key ?? current.currentStageKey,
+              currentStageName: stage?.name ?? current.currentStageName,
+              latestMessagePreview: row.latest_message_preview ?? current.latestMessagePreview,
+              latestMessageAt: row.latest_message_at ?? current.latestMessageAt,
+              latestDirection: (row.latest_direction as any) ?? current.latestDirection,
+              unreadCount: Number(row.unread_count ?? 0),
+            };
+          });
         }
       )
       .subscribe();
@@ -152,7 +272,7 @@ const Pipeline = () => {
       void supabase.removeChannel(channel);
       realtimeChannelRef.current = null;
     };
-  }, [selectedLead?.id]);
+  }, [selectedLead?.id, stages]);
 
   const groupedLeads = useMemo(() => {
     return stages.filter((stage) => stage.isActive).map((stage) => ({
