@@ -41,7 +41,12 @@
       "mcp__claude_ai_Supabase__list_tables",
       "mcp__claude_ai_Supabase__deploy_edge_function",
       "mcp__ide__getDiagnostics",
-      "Bash(bash scripts/start-server.sh --project-dir \"C:/Users/lukas/Desktop/MVP Builders/Radiflex/Radiflex\")"
+      "Bash(bash scripts/start-server.sh --project-dir \"C:/Users/lukas/Desktop/MVP Builders/Radiflex/Radiflex\")",
+      "Bash(printenv)",
+      "Read(//c/Users/lukas/Desktop/MVP Builders/Radiflex/Radiflex/$USERPROFILE/**)",
+      "Read(//c/Users/lukas/Desktop/MVP Builders/Radiflex/Radiflex/$APPDATA/**)",
+      "Read(//c/Users/lukas/Desktop/MVP Builders/Radiflex/Radiflex/$LOCALAPPDATA/**)",
+      "Read(//c/Users/lukas/Desktop/MVP Builders/Radiflex/Radiflex/**)"
     ]
   }
 }

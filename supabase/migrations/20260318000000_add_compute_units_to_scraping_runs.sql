@@ -1,0 +1,2 @@
+ALTER TABLE scraping_runs
+  ADD COLUMN IF NOT EXISTS compute_units NUMERIC DEFAULT NULL;

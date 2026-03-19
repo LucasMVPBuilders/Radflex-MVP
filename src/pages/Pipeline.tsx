@@ -44,6 +44,7 @@ const Pipeline = () => {
   const [composer, setComposer] = useState("");
   const [sendingMessage, setSendingMessage] = useState(false);
   const [stageDialogOpen, setStageDialogOpen] = useState(false);
+  const [drawerTab, setDrawerTab] = useState<"chat" | "details">("chat");
   const realtimeChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const [newStageName, setNewStageName] = useState("");
   const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
@@ -608,16 +609,18 @@ const Pipeline = () => {
         )}
       </main>
 
-      <Sheet open={selectedLead !== null} onOpenChange={(open) => !open && setSelectedLead(null)}>
-        <SheetContent side="right" className="w-full sm:max-w-2xl">
+      <Sheet open={selectedLead !== null} onOpenChange={(open) => { if (!open) setSelectedLead(null); setDrawerTab("chat"); }}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl flex flex-col p-0 gap-0">
           {selectedLead ? (
-            <div className="flex h-full flex-col gap-6">
-              <SheetHeader>
-                <div className="flex items-center justify-between">
+            <div className="flex h-full flex-col">
+
+              {/* ── Header ── */}
+              <div className="px-6 pt-6 pb-0 shrink-0">
+                <div className="flex items-start justify-between mb-4">
                   <div>
-                    <SheetTitle>Conversa do lead</SheetTitle>
-                    <SheetDescription>
-                      {selectedLead.leadSnapshot.companyName} • {selectedLead.contactPhone || selectedLead.contactEmail}
+                    <SheetTitle className="text-base font-semibold">{selectedLead.leadSnapshot.companyName}</SheetTitle>
+                    <SheetDescription className="text-xs mt-0.5">
+                      {selectedLead.contactPhone || selectedLead.contactEmail}
                     </SheetDescription>
                   </div>
                   <Button
@@ -626,16 +629,100 @@ const Pipeline = () => {
                     onClick={() => void loadConversation(selectedLead)}
                     disabled={messagesLoading}
                     title="Atualizar conversa"
+                    className="shrink-0"
                   >
                     <RefreshCw className={`h-4 w-4 ${messagesLoading ? "animate-spin" : ""}`} />
                   </Button>
                 </div>
-              </SheetHeader>
 
-              <div className="grid gap-4 rounded-2xl border bg-muted/20 p-4 md:grid-cols-2">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Etapa atual</p>
-                  <div className="mt-2">
+                {/* ── Tabs ── */}
+                <div className="flex gap-0 border-b">
+                  {(["chat", "details"] as const).map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => setDrawerTab(tab)}
+                      className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
+                        drawerTab === tab
+                          ? "border-primary text-primary"
+                          : "border-transparent text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {tab === "chat" ? "Chat" : "Detalhes"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* ── Aba Chat ── */}
+              {drawerTab === "chat" && (
+                <div className="flex flex-1 flex-col overflow-hidden px-6 py-4 gap-3 min-h-0">
+                  {/* mensagens */}
+                  <div className="flex-1 overflow-y-auto rounded-2xl border bg-muted/20 p-4 flex flex-col gap-4 min-h-0">
+                    {messagesLoading ? (
+                      <p className="text-sm text-muted-foreground m-auto">Carregando conversa...</p>
+                    ) : messages.length === 0 ? (
+                      <p className="text-sm text-muted-foreground m-auto">Nenhuma mensagem ainda.</p>
+                    ) : (
+                      messages.map((message, i) => {
+                        const isOut = message.direction === "outbound";
+                        const prevSameDir = i > 0 && messages[i - 1].direction === message.direction;
+                        return (
+                          <div key={message.id} className={`flex flex-col gap-1 ${isOut ? "items-end" : "items-start"}`}>
+                            {!prevSameDir && (
+                              <span className={`text-[11px] font-semibold px-1 ${isOut ? "text-primary/70" : "text-emerald-600"}`}>
+                                {isOut ? "SDR IA" : (selectedLead.leadSnapshot.companyName ?? "Lead")}
+                              </span>
+                            )}
+                            <div className={`max-w-[78%] px-4 py-2.5 text-sm leading-relaxed shadow-sm ${
+                              isOut
+                                ? "bg-primary text-primary-foreground rounded-[18px_18px_4px_18px]"
+                                : "bg-background border rounded-[4px_18px_18px_18px]"
+                            }`}>
+                              <p className="whitespace-pre-wrap">{message.body}</p>
+                            </div>
+                            <span className="text-[10.5px] text-muted-foreground px-1">
+                              {formatTimestamp(message.createdAt)}
+                            </span>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* input */}
+                  <div className="flex items-end gap-2 rounded-2xl border bg-muted/10 px-3 py-2 shrink-0">
+                    <Textarea
+                      aria-label="Nova mensagem"
+                      value={composer}
+                      onChange={(e) => setComposer(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          void handleSendMessage();
+                        }
+                      }}
+                      placeholder="Digite uma mensagem... (Enter para enviar)"
+                      className="min-h-[36px] max-h-[120px] flex-1 resize-none border-0 bg-transparent p-1 text-sm shadow-none focus-visible:ring-0 placeholder:text-muted-foreground"
+                      rows={1}
+                    />
+                    <Button
+                      size="icon"
+                      className="h-9 w-9 shrink-0 rounded-full"
+                      onClick={() => void handleSendMessage()}
+                      disabled={sendingMessage || !composer.trim()}
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Aba Detalhes ── */}
+              {drawerTab === "details" && (
+                <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+                  {/* Etapa */}
+                  <div className="rounded-2xl border bg-muted/20 p-4 space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Etapa atual</p>
                     <Select
                       value={selectedLead.currentStageId}
                       onValueChange={(value) => void handleStageChangeFromDrawer(value)}
@@ -644,116 +731,47 @@ const Pipeline = () => {
                         <SelectValue placeholder="Selecione a etapa" />
                       </SelectTrigger>
                       <SelectContent>
-                        {stages
-                          .filter((stage) => stage.isActive)
-                          .map((stage) => (
-                            <SelectItem key={stage.id} value={stage.id}>
-                              {stage.name}
-                            </SelectItem>
-                          ))}
+                        {stages.filter((s) => s.isActive).map((stage) => (
+                          <SelectItem key={stage.id} value={stage.id}>{stage.name}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
-                  </div>
-                </div>
-
-                {selectedLead.currentStageKey === "sdr_talking" ? (
-                  <div className="rounded-xl border bg-primary/5 p-3">
-                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                      SDR em contato
-                    </p>
-                    <p className="mt-1 text-sm font-medium">Aguardando o lead responder.</p>
-                  </div>
-                ) : null}
-                <div>
-                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Última interação</p>
-                  <p className="mt-1 text-sm font-medium">{formatTimestamp(selectedLead.latestMessageAt)}</p>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border bg-muted/20 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                  Resumo do SDR
-                </p>
-                {selectedLead.sdrLastSummary ? (
-                  <div className="mt-2 space-y-2">
-                    <p className="text-sm font-medium">{selectedLead.sdrLastSummary}</p>
-                    {selectedLead.sdrLastReason ? (
-                      <p className="text-xs text-muted-foreground whitespace-pre-wrap">
-                        Motivo: {selectedLead.sdrLastReason}
-                      </p>
-                    ) : null}
-                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                      Última execução: {formatTimestamp(selectedLead.sdrLastRunAt)}
-                    </p>
-                  </div>
-                ) : (
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    O SDR ainda não qualificou este lead.
-                  </p>
-                )}
-              </div>
-
-              {/* ── Conversa estilo iMessage ── */}
-              <div className="flex-1 overflow-y-auto rounded-2xl border bg-[#0f0f1a] p-4 flex flex-col gap-4">
-                {messagesLoading ? (
-                  <p className="text-sm text-muted-foreground m-auto">Carregando conversa...</p>
-                ) : messages.length === 0 ? (
-                  <p className="text-sm text-muted-foreground m-auto">Nenhuma mensagem ainda.</p>
-                ) : (
-                  messages.map((message, i) => {
-                    const isOut = message.direction === "outbound";
-                    const prevSameDir = i > 0 && messages[i - 1].direction === message.direction;
-                    return (
-                      <div key={message.id} className={`flex flex-col gap-1 ${isOut ? "items-end" : "items-start"}`}>
-                        {/* nome do remetente apenas na primeira de cada grupo */}
-                        {!prevSameDir && (
-                          <span className={`text-[11px] font-semibold px-1 ${isOut ? "text-primary/70" : "text-emerald-400/80"}`}>
-                            {isOut ? "SDR IA" : (selectedLead?.leadSnapshot?.companyName ?? "Lead")}
-                          </span>
-                        )}
-                        <div
-                          className={`max-w-[78%] px-4 py-2.5 text-sm leading-relaxed shadow-sm ${
-                            isOut
-                              ? "bg-primary text-primary-foreground rounded-[18px_18px_4px_18px]"
-                              : "bg-[#1e293b] text-slate-100 rounded-[4px_18px_18px_18px]"
-                          }`}
-                        >
-                          <p className="whitespace-pre-wrap">{message.body}</p>
-                        </div>
-                        <span className={`text-[10.5px] text-muted-foreground px-1 ${isOut ? "text-right" : ""}`}>
-                          {formatTimestamp(message.createdAt)}
-                        </span>
+                    {selectedLead.currentStageKey === "sdr_talking" && (
+                      <div className="rounded-xl border bg-primary/5 px-3 py-2 mt-1">
+                        <p className="text-xs font-semibold text-primary">SDR em contato</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">Aguardando o lead responder.</p>
                       </div>
-                    );
-                  })
-                )}
-              </div>
+                    )}
+                  </div>
 
-              {/* ── Input compacto estilo WhatsApp ── */}
-              <div className="flex items-end gap-2 rounded-2xl border bg-[#13131f] px-3 py-2">
-                <Textarea
-                  aria-label="Nova mensagem"
-                  value={composer}
-                  onChange={(e) => setComposer(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      void handleSendMessage();
-                    }
-                  }}
-                  placeholder="Digite uma mensagem..."
-                  className="min-h-[36px] max-h-[120px] flex-1 resize-none border-0 bg-transparent p-1 text-sm shadow-none focus-visible:ring-0 placeholder:text-muted-foreground"
-                  rows={1}
-                />
-                <Button
-                  size="icon"
-                  className="h-9 w-9 shrink-0 rounded-full"
-                  onClick={() => void handleSendMessage()}
-                  disabled={sendingMessage || !composer.trim()}
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
+                  {/* Última interação */}
+                  <div className="rounded-2xl border bg-muted/20 p-4 space-y-1">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Última interação</p>
+                    <p className="text-sm font-medium">{formatTimestamp(selectedLead.latestMessageAt)}</p>
+                  </div>
+
+                  {/* Resumo SDR */}
+                  <div className="rounded-2xl border bg-muted/20 p-4 space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Resumo do SDR</p>
+                    {selectedLead.sdrLastSummary ? (
+                      <>
+                        <p className="text-sm font-medium">{selectedLead.sdrLastSummary}</p>
+                        {selectedLead.sdrLastReason && (
+                          <p className="text-xs text-muted-foreground whitespace-pre-wrap">
+                            Motivo: {selectedLead.sdrLastReason}
+                          </p>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                          Última execução: {formatTimestamp(selectedLead.sdrLastRunAt)}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">O SDR ainda não qualificou este lead.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
             </div>
           ) : null}
         </SheetContent>
