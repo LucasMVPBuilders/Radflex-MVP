@@ -202,7 +202,7 @@ async function handlePoll(body: any) {
   }
 
   // Run finalizado — busca resultados
-  const itemsRes = await fetch(`${APIFY_BASE}/datasets/${datasetId}/items?token=${apifyToken}&limit=300`);
+  const itemsRes = await fetch(`${APIFY_BASE}/datasets/${datasetId}/items?token=${apifyToken}&limit=5000`);
   if (!itemsRes.ok) {
     return new Response(
       JSON.stringify({ success: false, error: 'Erro ao buscar resultados do dataset.' }),

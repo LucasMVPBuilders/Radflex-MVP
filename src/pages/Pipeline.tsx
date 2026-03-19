@@ -46,6 +46,7 @@ const Pipeline = () => {
   const [stageDialogOpen, setStageDialogOpen] = useState(false);
   const [drawerTab, setDrawerTab] = useState<"chat" | "details">("chat");
   const realtimeChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const [newStageName, setNewStageName] = useState("");
   const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
 
@@ -383,6 +384,12 @@ const Pipeline = () => {
     }
   };
 
+  useEffect(() => {
+    if (drawerTab === "chat") {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, drawerTab]);
+
   const handleSendMessage = async () => {
     if (!selectedLead || !composer.trim()) {
       return;
@@ -687,6 +694,7 @@ const Pipeline = () => {
                         );
                       })
                     )}
+                    <div ref={messagesEndRef} />
                   </div>
 
                   {/* input */}

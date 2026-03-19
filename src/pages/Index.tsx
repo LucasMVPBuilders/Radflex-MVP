@@ -107,7 +107,7 @@ const Index = () => {
           .from("leads")
           .select("*")
           .order("created_at", { ascending: false })
-          .limit(500);
+          .limit(5000);
 
         if (cancelled) return;
 
