@@ -551,15 +551,16 @@ const Pipeline = () => {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4 xl:grid-cols-5 md:grid-cols-2">
+          <div className="flex gap-4 overflow-x-auto pb-4">
             {groupedLeads.map(({ stage, leads: stageLeads }) => (
               <section
                 key={stage.id}
-                className="min-h-[420px] rounded-2xl border bg-card/80 p-3"
+                className="flex w-72 shrink-0 flex-col rounded-2xl border bg-card/80 p-3"
+                style={{ maxHeight: "calc(100vh - 180px)" }}
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={() => void handleDropOnStage(stage.id)}
               >
-                <div className="mb-3 flex items-center justify-between">
+                <div className="mb-3 flex shrink-0 items-center justify-between">
                   <div>
                     <h2 className="font-semibold">{stage.name}</h2>
                     <p className="text-xs text-muted-foreground">
@@ -572,7 +573,7 @@ const Pipeline = () => {
                   />
                 </div>
 
-                <div className="space-y-3">
+                <div className="flex-1 overflow-y-auto space-y-3 pr-0.5">
                   {stageLeads.length === 0 ? (
                     <div className="rounded-xl border border-dashed p-4 text-xs text-muted-foreground">
                       Nenhum lead nesta etapa.

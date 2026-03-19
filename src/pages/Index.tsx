@@ -68,6 +68,9 @@ const Index = () => {
   const [savedLeads, setSavedLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<"session" | "saved">("session");
+  const [savedPage, setSavedPage] = useState(1);
+  const [savedTotalCount, setSavedTotalCount] = useState(0);
+  const SAVED_PAGE_SIZE = 100;
   // Rastreia em qual batch cada CNAE está (0 = busca inicial, 1+ = por região)
   const [cnaeBatchMap, setCnaeBatchMap] = useState<Record<string, number>>({});
   // Estados selecionados para o filtro de "buscar mais" (vazio = geral)
@@ -97,17 +100,25 @@ const Index = () => {
 
   useEffect(() => {
     if (mode !== "saved") return;
+    setSavedPage(1);
+  }, [mode]);
+
+  useEffect(() => {
+    if (mode !== "saved") return;
 
     let cancelled = false;
 
     const loadSavedLeads = async () => {
       setLoading(true);
       try {
-        const { data, error } = await supabase
+        const from = (savedPage - 1) * SAVED_PAGE_SIZE;
+        const to = savedPage * SAVED_PAGE_SIZE - 1;
+
+        const { data, count, error } = await supabase
           .from("leads")
-          .select("*")
+          .select("*", { count: "exact" })
           .order("created_at", { ascending: false })
-          .limit(5000);
+          .range(from, to);
 
         if (cancelled) return;
 
@@ -116,6 +127,8 @@ const Index = () => {
           toast.error("Erro ao carregar leads salvos.");
           return;
         }
+
+        if (count !== null) setSavedTotalCount(count);
 
         const mapped: Lead[] = (data || []).map((row: any) => ({
           id: row.id,
@@ -146,7 +159,7 @@ const Index = () => {
 
     loadSavedLeads();
     return () => { cancelled = true; };
-  }, [mode]);
+  }, [mode, savedPage]);
 
   const toggleCnae = async (code: string) => {
     const nowActive = !activeCnaes.includes(code);
@@ -407,7 +420,7 @@ const Index = () => {
         cnaeCodes={cnaeCodes}
         onAddCnae={addCnae}
         onRemoveCnae={removeCnae}
-        totalLeads={filteredLeads.length}
+        totalLeads={mode === "saved" ? savedTotalCount : filteredLeads.length}
         onExportCsv={handleExportCsv}
         onExportPdf={handleExportPdf}
       />
@@ -415,7 +428,7 @@ const Index = () => {
         <TopBar
           search={search}
           onSearchChange={setSearch}
-          resultCount={filteredLeads.length}
+          resultCount={mode === "saved" ? savedTotalCount : filteredLeads.length}
           loading={loading}
           mode={mode}
           onModeChange={setMode}
@@ -580,7 +593,16 @@ const Index = () => {
             )}
           </div>
         )}
-        <LeadsTable leads={filteredLeads} onSelectLead={setSelectedLead} loading={loading} />
+        <LeadsTable
+          leads={filteredLeads}
+          onSelectLead={setSelectedLead}
+          loading={loading}
+          {...(mode === "saved" && {
+            totalCount: savedTotalCount,
+            page: savedPage,
+            onPageChange: setSavedPage,
+          })}
+        />
       </main>
       <LeadDetail
         lead={selectedLead}
