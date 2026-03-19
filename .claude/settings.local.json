@@ -39,7 +39,8 @@
       "Bash(/dev/null --include=\"*.ts\" --include=\"*.tsx\")",
       "mcp__claude_ai_Supabase__list_migrations",
       "mcp__claude_ai_Supabase__list_tables",
-      "mcp__claude_ai_Supabase__deploy_edge_function"
+      "mcp__claude_ai_Supabase__deploy_edge_function",
+      "mcp__ide__getDiagnostics"
     ]
   }
 }
