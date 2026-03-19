@@ -34,7 +34,12 @@
       "mcp__plugin_playwright_playwright__browser_click",
       "Bash(RUN_ID=\"VIkeqNx6rhN9I88fw\")",
       "Bash(DATASET_ID=\"2kr96eSbqk6SzB8c8\")",
-      "Bash(bash \"C:/Users/lukas/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.2/skills/brainstorming/scripts/start-server.sh\" --project-dir \"c:/Users/lukas/Desktop/MVP Builders/Radiflex/Radiflex\")"
+      "Bash(bash \"C:/Users/lukas/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.2/skills/brainstorming/scripts/start-server.sh\" --project-dir \"c:/Users/lukas/Desktop/MVP Builders/Radiflex/Radiflex\")",
+      "Bash(xargs -0 grep -l \"Pipeline\\\\|pipeline\")",
+      "Bash(/dev/null --include=\"*.ts\" --include=\"*.tsx\")",
+      "mcp__claude_ai_Supabase__list_migrations",
+      "mcp__claude_ai_Supabase__list_tables",
+      "mcp__claude_ai_Supabase__deploy_edge_function"
     ]
   }
 }

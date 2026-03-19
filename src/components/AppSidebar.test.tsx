@@ -4,19 +4,6 @@ import { describe, expect, it } from "vitest";
 import { AppSidebar } from "./AppSidebar";
 
 describe("AppSidebar", () => {
-  it("renders a navigation link to the temporary test chat page", () => {
-    render(
-      <MemoryRouter>
-        <AppSidebar />
-      </MemoryRouter>
-    );
-
-    const testChatLink = screen.getByRole("link", { name: /teste chat/i });
-
-    expect(testChatLink).toBeInTheDocument();
-    expect(testChatLink).toHaveAttribute("href", "/test-chat");
-  });
-
   it("renders a navigation link to the pipeline page", () => {
     render(
       <MemoryRouter>

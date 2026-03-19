@@ -141,11 +141,11 @@ Deno.serve(async (req) => {
     .map((m) => `${m.direction.toUpperCase()}: ${m.body}`)
     .join("\n");
 
-  // Stage keys -> ids
+  // Stage keys -> ids (includes lead's current stage so {{leadStage}} placeholder is populated)
   const { data: stages, error: stagesError } = await supabase
     .from("pipeline_stages")
     .select("id,key,name")
-    .in("key", ["qualified", "desqualified", "sdr_talking"]);
+    .or(`key.in.(qualified,desqualified,sdr_talking),id.eq.${lead.current_stage_id}`);
 
   if (stagesError) {
     return jsonResponse({ success: false, error: stagesError.message }, 500);
@@ -273,7 +273,10 @@ Deno.serve(async (req) => {
 
     const sendRes = await fetch(`${SUPABASE_URL}/functions/v1/send-message`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      },
       body: JSON.stringify({
         channel: leadPrimaryChannel,
         to,

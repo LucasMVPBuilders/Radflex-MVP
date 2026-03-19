@@ -73,19 +73,27 @@ Deno.serve(async (req) => {
   // Try exact match first, then fallback to suffix match for format variations
   let pipelineLead: { id: string; current_stage_id: string; unread_count: number } | null = null;
 
-  const [{ data: exactMatch, error: exactError }, { data: repliedStage, error: repliedStageError }] =
-    await Promise.all([
-      supabase
-        .from("pipeline_leads")
-        .select("id, current_stage_id, unread_count")
-        .eq("contact_phone", from)
-        .maybeSingle(),
-      supabase
-        .from("pipeline_stages")
-        .select("id")
-        .eq("key", "replied")
-        .maybeSingle(),
-    ]);
+  const [
+    { data: exactMatch, error: exactError },
+    { data: repliedStage, error: repliedStageError },
+    { data: finalStages },
+  ] = await Promise.all([
+    supabase
+      .from("pipeline_leads")
+      .select("id, current_stage_id, unread_count")
+      .eq("contact_phone", from)
+      .maybeSingle(),
+    supabase
+      .from("pipeline_stages")
+      .select("id")
+      .eq("key", "replied")
+      .maybeSingle(),
+    // Stages where SDR already made a final decision — don't reset back to "replied"
+    supabase
+      .from("pipeline_stages")
+      .select("id")
+      .in("key", ["qualified", "desqualified"]),
+  ]);
 
   if (exactError) {
     console.error("Error querying pipeline_leads", exactError);
@@ -143,7 +151,10 @@ Deno.serve(async (req) => {
     unread_count: Number(pipelineLead.unread_count ?? 0) + 1,
   };
 
-  if (repliedStage && pipelineLead.current_stage_id !== repliedStage.id) {
+  const finalStageIds = new Set((finalStages ?? []).map((s: any) => s.id));
+  const isAlreadyFinalized = finalStageIds.has(pipelineLead.current_stage_id);
+
+  if (repliedStage && !isAlreadyFinalized && pipelineLead.current_stage_id !== repliedStage.id) {
     updatePayload.current_stage_id = repliedStage.id;
   }
 
@@ -156,12 +167,13 @@ Deno.serve(async (req) => {
     return xmlResponse("<Response></Response>", 500);
   }
 
-  // SDR: qualifica/desqualifica o lead (roda async mas antes do retorno do webhook).
-  // Recomendacao: deploy do `sdr-qualify` com `verify_jwt: false` para permitir chamada interna.
-  // Importante: nao bloquear o webhook (Twilio espera resposta rapida).
-  void fetch(`${SUPABASE_URL}/functions/v1/sdr-qualify`, {
+  // SDR: skip leads already finalized (qualified / desqualified) to prevent re-qualification.
+  if (!isAlreadyFinalized) void fetch(`${SUPABASE_URL}/functions/v1/sdr-qualify`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+    },
     body: JSON.stringify({ pipelineLeadId: pipelineLead.id }),
   })
     .then(async (sdrRes) => {
