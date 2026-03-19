@@ -29,35 +29,47 @@ export function LeadSelector({
   useEffect(() => {
     if (source !== "saved") return;
     setLoadingSaved(true);
-    (supabase as any)
-      .from("leads")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(500)
-      .then(({ data, error }: any) => {
-        if (error) {
-          toast.error("Erro ao carregar leads salvos.");
-          return;
-        }
-        const mapped: Lead[] = (data ?? []).map((row: any) => ({
-          id: row.id,
-          companyName: row.company_name ?? "Empresa",
-          cnae: row.cnae_code ?? "",
-          estimatedRevenue: Number(row.faturamento_est ?? 0),
-          city: row.raw?.city ?? "",
-          state: row.uf ?? "",
-          phone: row.raw?.phone ?? "",
-          email: row.raw?.email ?? "",
-          status: row.status ?? "found",
-          cnpj: row.raw?.cnpj ?? row.id,
-          website: row.raw?.website,
-          address: row.raw?.address,
-          rating: row.raw?.rating,
-          reviewsCount: row.raw?.reviewsCount,
-        }));
-        setSavedLeads(mapped);
-      })
-      .finally(() => setLoadingSaved(false));
+
+    const loadAll = async () => {
+      const PAGE = 1000;
+      let all: any[] = [];
+      let from = 0;
+
+      while (true) {
+        const { data, error } = await supabase
+          .from("leads")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .range(from, from + PAGE - 1);
+
+        if (error) { toast.error("Erro ao carregar leads salvos."); break; }
+        if (!data || data.length === 0) break;
+        all = [...all, ...data];
+        if (data.length < PAGE) break;
+        from += PAGE;
+      }
+
+      const mapped: Lead[] = all.map((row: any) => ({
+        id: row.id,
+        companyName: row.company_name ?? "Empresa",
+        cnae: row.cnae_code ?? "",
+        estimatedRevenue: Number(row.faturamento_est ?? 0),
+        city: row.raw?.city ?? "",
+        state: row.uf ?? "",
+        phone: row.raw?.phone ?? "",
+        email: row.raw?.email ?? "",
+        status: row.status ?? "found",
+        cnpj: row.raw?.cnpj ?? row.id,
+        website: row.raw?.website,
+        address: row.raw?.address,
+        rating: row.raw?.rating,
+        reviewsCount: row.raw?.reviewsCount,
+      }));
+      setSavedLeads(mapped);
+      setLoadingSaved(false);
+    };
+
+    loadAll();
   }, [source]);
 
   const baseLeads = source === "saved" ? savedLeads : sessionLeads;
