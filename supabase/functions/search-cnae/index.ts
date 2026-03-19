@@ -181,8 +181,9 @@ async function handlePoll(body: any) {
 
   const statusData = await statusRes.json();
   const status: string = statusData?.data?.status || 'UNKNOWN';
+  const computeUnits: number | null = statusData?.data?.stats?.computeUnits ?? null;
 
-  console.log(`Poll run ${apifyRunId}: ${status}`);
+  console.log(`Poll run ${apifyRunId}: ${status} (${computeUnits ?? '?'} CUs)`);
 
   // Run ainda em andamento — frontend vai tentar de novo em alguns segundos
   if (status === 'RUNNING' || status === 'READY') {
@@ -240,7 +241,7 @@ async function handlePoll(body: any) {
 
   // Persiste no Supabase (assíncrono, não bloqueia resposta)
   if (supabase && leads.length > 0) {
-    persistLeads(leads, cnae, estado, page, apifyRunId, datasetId).catch((e) =>
+    persistLeads(leads, cnae, estado, page, apifyRunId, datasetId, computeUnits).catch((e) =>
       console.error('Erro ao persistir leads:', e)
     );
   }
@@ -258,6 +259,7 @@ async function persistLeads(
   page: number,
   apifyRunId: string,
   datasetId: string,
+  computeUnits: number | null = null,
 ) {
   if (!supabase) return;
 
@@ -266,6 +268,7 @@ async function persistLeads(
     .insert({
       source: 'search-cnae-apify',
       filters_json: { cnae, estado: estado || null, page, apifyRunId, datasetId },
+      compute_units: computeUnits,
     })
     .select('id')
     .single();

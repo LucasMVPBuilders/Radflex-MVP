@@ -1,6 +1,8 @@
 import { Search, Loader2, LogOut } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { UsagePopover } from "@/components/UsagePopover";
+import { ApifyUsageData } from "@/hooks/useApifyUsage";
 
 interface TopBarProps {
   search: string;
@@ -10,9 +12,13 @@ interface TopBarProps {
   mode: "session" | "saved";
   onModeChange: (mode: "session" | "saved") => void;
   onLogout?: () => void;
+  usageData?: ApifyUsageData | null;
+  usageLoading?: boolean;
+  usageError?: string | null;
+  onRefreshUsage?: () => void;
 }
 
-export const TopBar = ({ search, onSearchChange, resultCount, loading, mode, onModeChange, onLogout }: TopBarProps) => {
+export const TopBar = ({ search, onSearchChange, resultCount, loading, mode, onModeChange, onLogout, usageData, usageLoading, usageError, onRefreshUsage }: TopBarProps) => {
   return (
     <div className="flex items-center justify-between gap-4 mb-5">
       <div>
@@ -52,6 +58,12 @@ export const TopBar = ({ search, onSearchChange, resultCount, loading, mode, onM
             className="pl-9 w-64 h-9 text-sm"
           />
         </div>
+        <UsagePopover
+          data={usageData ?? null}
+          loading={usageLoading ?? false}
+          error={usageError ?? null}
+          onRefresh={onRefreshUsage ?? (() => {})}
+        />
         {onLogout && (
           <Button
             variant="ghost"

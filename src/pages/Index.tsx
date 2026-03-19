@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
+import { useApifyUsage } from "@/hooks/useApifyUsage";
 import { useNavigate } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { LeadsTable } from "@/components/LeadsTable";
@@ -50,6 +51,7 @@ const BR_STATES = [
 
 const Index = () => {
   const navigate = useNavigate();
+  const { data: usageData, loading: usageLoading, error: usageError, refresh: refreshUsage } = useApifyUsage();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -418,6 +420,10 @@ const Index = () => {
           mode={mode}
           onModeChange={setMode}
           onLogout={handleLogout}
+          usageData={usageData}
+          usageLoading={usageLoading}
+          usageError={usageError}
+          onRefreshUsage={refreshUsage}
         />
         {/* Painel de filtros unificado */}
         {mode === "session" && (
