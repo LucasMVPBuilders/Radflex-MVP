@@ -92,6 +92,66 @@ const Pipeline = () => {
     void loadPipeline();
   }, [loadPipeline]);
 
+  // Realtime: qualquer UPDATE em pipeline_leads atualiza o kanban imediatamente.
+  useEffect(() => {
+    const channel = supabase
+      .channel("pipeline-board")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "pipeline_leads" },
+        (payload) => {
+          const row = payload.new as any;
+          setLeads((prev) =>
+            prev.map((l) => {
+              if (l.id !== row.id) return l;
+              const stage = stages.find((s) => s.id === row.current_stage_id);
+              return {
+                ...l,
+                currentStageId: row.current_stage_id,
+                currentStageKey: stage?.key ?? l.currentStageKey,
+                currentStageName: stage?.name ?? l.currentStageName,
+                latestMessagePreview: row.latest_message_preview ?? l.latestMessagePreview,
+                latestMessageAt: row.latest_message_at ?? l.latestMessageAt,
+                latestDirection: (row.latest_direction as any) ?? l.latestDirection,
+                unreadCount: Number(row.unread_count ?? 0),
+                sdrLastSummary: row.sdr_last_summary ?? l.sdrLastSummary,
+                sdrLastReason: row.sdr_last_reason ?? l.sdrLastReason,
+                sdrLastJson: row.sdr_last_json ?? l.sdrLastJson,
+                sdrLastRunAt: row.sdr_last_run_at ?? l.sdrLastRunAt,
+              };
+            })
+          );
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "pipeline_leads" },
+        () => { void fetchPipelineLeads().then(setLeads); }
+      )
+      .subscribe();
+
+    return () => { void supabase.removeChannel(channel); };
+  }, [stages]);
+
+  // Polling a cada 5s como fallback (garante consistência mesmo se o realtime falhar).
+  const boardPollRef = useRef(false);
+  useEffect(() => {
+    const poll = async () => {
+      if (boardPollRef.current) return;
+      boardPollRef.current = true;
+      try {
+        const leadData = await fetchPipelineLeads();
+        setLeads(leadData);
+      } catch (e) {
+        console.error("Board polling error:", e);
+      } finally {
+        boardPollRef.current = false;
+      }
+    };
+    const id = window.setInterval(() => void poll(), 5000);
+    return () => window.clearInterval(id);
+  }, []);
+
   // Fallback (e garante consistência): atualiza conversa do lead a cada 5s.
   // Isso evita depender 100% do realtime (que pode atrasar ou não disparar em alguns cenários).
   const pollingInFlightRef = useRef(false);
@@ -543,6 +603,43 @@ const Pipeline = () => {
             </Button>
           </div>
         </header>
+
+        {!loading && (
+          <div className="flex gap-4 overflow-x-auto pb-2">
+            {groupedLeads.map(({ stage, leads: stageLeads }) => {
+              const color = stage.color ?? "#94A3B8";
+              const total = leads.filter((l) => l.currentStageId === stage.id).length;
+              const unread = leads.filter((l) => l.currentStageId === stage.id && l.unreadCount > 0).length;
+              return (
+                <div
+                  key={stage.id}
+                  className="relative w-72 shrink-0 overflow-hidden rounded-2xl border bg-card/80 px-5 py-4"
+                  style={{ borderTop: `3px solid ${color}` }}
+                >
+                  {/* decorative circle */}
+                  <div
+                    className="pointer-events-none absolute -right-4 -top-4 h-20 w-20 rounded-full opacity-10"
+                    style={{ backgroundColor: color }}
+                  />
+                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground truncate pr-8">
+                    {stage.name}
+                  </p>
+                  <p className="mt-1 text-3xl font-bold tabular-nums" style={{ color }}>
+                    {total}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    lead{total !== 1 ? "s" : ""}
+                    {unread > 0 && (
+                      <span className="ml-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: `${color}22`, color }}>
+                        {unread} não lido{unread > 1 ? "s" : ""}
+                      </span>
+                    )}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {loading ? (
           <Card>
