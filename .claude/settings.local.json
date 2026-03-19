@@ -40,7 +40,8 @@
       "mcp__claude_ai_Supabase__list_migrations",
       "mcp__claude_ai_Supabase__list_tables",
       "mcp__claude_ai_Supabase__deploy_edge_function",
-      "mcp__ide__getDiagnostics"
+      "mcp__ide__getDiagnostics",
+      "Bash(bash scripts/start-server.sh --project-dir \"C:/Users/lukas/Desktop/MVP Builders/Radiflex/Radiflex\")"
     ]
   }
 }

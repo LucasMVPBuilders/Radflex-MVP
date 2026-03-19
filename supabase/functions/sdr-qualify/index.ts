@@ -191,7 +191,38 @@ Deno.serve(async (req) => {
     conversation
   );
 
-  // OpenAI (força JSON)
+  // Passo 1: raciocínio interno (thinking) — o modelo analisa a conversa livremente
+  // antes de formular a resposta, tornando-a mais natural e contextualizada.
+  const thinkRes = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: OPENAI_MODEL,
+      temperature: 0.5,
+      messages: [
+        {
+          role: "system",
+          content:
+            "Você é um analista de conversas de vendas B2B. Analise a conversa abaixo e pense internamente (sem se preocupar com formato): Qual é o estado emocional do lead? O que ele realmente quer ou teme? Qual tom de resposta seria mais eficaz — direto, empático, consultivo? Existe algum sinal de interesse ou resistência subentendido? O que NÃO dizer para não parecer robótico ou genérico? Seja direto e específico.",
+        },
+        {
+          role: "user",
+          content: filledPrompt,
+        },
+      ],
+    }),
+  });
+
+  let thinking = "";
+  if (thinkRes.ok) {
+    const thinkJson = await thinkRes.json().catch(() => null);
+    thinking = thinkJson?.choices?.[0]?.message?.content ?? "";
+  }
+
+  // Passo 2: geração da resposta usando o raciocínio como contexto adicional
   const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -200,7 +231,7 @@ Deno.serve(async (req) => {
     },
     body: JSON.stringify({
       model: OPENAI_MODEL,
-      temperature: 0.2,
+      temperature: 0.3,
       messages: [
         {
           role: "system",
@@ -211,6 +242,19 @@ Deno.serve(async (req) => {
           role: "user",
           content: filledPrompt,
         },
+        ...(thinking
+          ? [
+              {
+                role: "assistant" as const,
+                content: `Minha análise interna da conversa antes de responder:\n${thinking}`,
+              },
+              {
+                role: "user" as const,
+                content:
+                  "Com base nessa análise, agora gere a resposta JSON seguindo as regras do prompt original. A mensagem ao lead deve soar natural, humana e específica para o contexto — nunca genérica.",
+              },
+            ]
+          : []),
       ],
       response_format: { type: "json_object" },
     }),

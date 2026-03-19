@@ -693,54 +693,66 @@ const Pipeline = () => {
                 )}
               </div>
 
-              <div className="flex-1 space-y-3 overflow-y-auto rounded-2xl border bg-background p-4">
+              {/* ── Conversa estilo iMessage ── */}
+              <div className="flex-1 overflow-y-auto rounded-2xl border bg-[#0f0f1a] p-4 flex flex-col gap-4">
                 {messagesLoading ? (
-                  <p className="text-sm text-muted-foreground">Carregando conversa...</p>
+                  <p className="text-sm text-muted-foreground m-auto">Carregando conversa...</p>
                 ) : messages.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Nenhuma mensagem nesta conversa ainda.</p>
+                  <p className="text-sm text-muted-foreground m-auto">Nenhuma mensagem ainda.</p>
                 ) : (
-                  messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`max-w-[85%] rounded-3xl px-4 py-3 text-sm ${
-                        message.direction === "outbound"
-                          ? "ml-auto rounded-br-md bg-primary text-primary-foreground"
-                          : "rounded-bl-md border bg-muted/30"
-                      }`}
-                    >
-                      <p className="whitespace-pre-wrap">{message.body}</p>
-                      <p
-                        className={`mt-2 text-[10px] uppercase tracking-[0.18em] ${
-                          message.direction === "outbound"
-                            ? "text-primary-foreground/80"
-                            : "text-muted-foreground"
-                        }`}
-                      >
-                        {message.direction === "outbound" ? "Enviado" : "Recebido"} • {formatTimestamp(message.createdAt)}
-                      </p>
-                    </div>
-                  ))
+                  messages.map((message, i) => {
+                    const isOut = message.direction === "outbound";
+                    const prevSameDir = i > 0 && messages[i - 1].direction === message.direction;
+                    return (
+                      <div key={message.id} className={`flex flex-col gap-1 ${isOut ? "items-end" : "items-start"}`}>
+                        {/* nome do remetente apenas na primeira de cada grupo */}
+                        {!prevSameDir && (
+                          <span className={`text-[11px] font-semibold px-1 ${isOut ? "text-primary/70" : "text-emerald-400/80"}`}>
+                            {isOut ? "SDR IA" : (selectedLead?.leadSnapshot?.companyName ?? "Lead")}
+                          </span>
+                        )}
+                        <div
+                          className={`max-w-[78%] px-4 py-2.5 text-sm leading-relaxed shadow-sm ${
+                            isOut
+                              ? "bg-primary text-primary-foreground rounded-[18px_18px_4px_18px]"
+                              : "bg-[#1e293b] text-slate-100 rounded-[4px_18px_18px_18px]"
+                          }`}
+                        >
+                          <p className="whitespace-pre-wrap">{message.body}</p>
+                        </div>
+                        <span className={`text-[10.5px] text-muted-foreground px-1 ${isOut ? "text-right" : ""}`}>
+                          {formatTimestamp(message.createdAt)}
+                        </span>
+                      </div>
+                    );
+                  })
                 )}
               </div>
 
-              <div className="space-y-3">
+              {/* ── Input compacto estilo WhatsApp ── */}
+              <div className="flex items-end gap-2 rounded-2xl border bg-[#13131f] px-3 py-2">
                 <Textarea
-                  aria-label="Nova mensagem do lead"
+                  aria-label="Nova mensagem"
                   value={composer}
-                  onChange={(event) => setComposer(event.target.value)}
-                  placeholder="Digite a próxima mensagem para o lead..."
-                  className="min-h-[120px]"
+                  onChange={(e) => setComposer(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      void handleSendMessage();
+                    }
+                  }}
+                  placeholder="Digite uma mensagem..."
+                  className="min-h-[36px] max-h-[120px] flex-1 resize-none border-0 bg-transparent p-1 text-sm shadow-none focus-visible:ring-0 placeholder:text-muted-foreground"
+                  rows={1}
                 />
-                <div className="flex justify-end">
-                  <Button
-                    className="gap-2"
-                    onClick={() => void handleSendMessage()}
-                    disabled={sendingMessage || !composer.trim()}
-                  >
-                    <Send className="h-4 w-4" />
-                    {sendingMessage ? "Enviando..." : "Enviar mensagem"}
-                  </Button>
-                </div>
+                <Button
+                  size="icon"
+                  className="h-9 w-9 shrink-0 rounded-full"
+                  onClick={() => void handleSendMessage()}
+                  disabled={sendingMessage || !composer.trim()}
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
               </div>
             </div>
           ) : null}

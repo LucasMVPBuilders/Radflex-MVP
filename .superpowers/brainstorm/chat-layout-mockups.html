@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chat Layout — Mockups</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f0f1a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 32px 24px;
+    }
+
+    h1 { font-size: 22px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+    .subtitle { font-size: 14px; color: #94a3b8; margin-bottom: 32px; }
+
+    .options-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-bottom: 32px;
+    }
+
+    .option-card {
+      border: 2px solid #1e1e35;
+      border-radius: 16px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: #13131f;
+    }
+    .option-card:hover { border-color: #5B2ECC; transform: translateY(-2px); }
+    .option-card.selected { border-color: #5B2ECC; box-shadow: 0 0 0 3px rgba(91,46,204,0.3); }
+
+    .option-label {
+      padding: 12px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #94a3b8;
+      border-bottom: 1px solid #1e1e35;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .option-card.selected .option-label { color: #a78bfa; }
+    .badge {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 99px;
+      background: #5B2ECC22;
+      color: #a78bfa;
+    }
+    .check {
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      border: 2px solid #334155;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px;
+      transition: all 0.2s;
+    }
+    .option-card.selected .check {
+      background: #5B2ECC;
+      border-color: #5B2ECC;
+      color: white;
+    }
+
+    .chat-preview {
+      padding: 0;
+      height: 480px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── OPÇÃO A: WhatsApp-style ── */
+    .preview-a {
+      background: #0b141a;
+    }
+    .preview-a .chat-bg {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 12px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.015'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+
+    /* msg inbound A */
+    .msg-in-a {
+      align-self: flex-start;
+      background: #202c33;
+      color: #e9edef;
+      border-radius: 0px 8px 8px 8px;
+      padding: 7px 10px 6px;
+      max-width: 75%;
+      font-size: 13.5px;
+      line-height: 1.4;
+      position: relative;
+      box-shadow: 0 1px 2px rgba(0,0,0,.35);
+    }
+    .msg-in-a::before {
+      content: '';
+      position: absolute;
+      left: -6px; top: 0;
+      border: 6px solid transparent;
+      border-top-color: #202c33;
+      border-right-color: #202c33;
+    }
+
+    /* msg outbound A */
+    .msg-out-a {
+      align-self: flex-end;
+      background: #005c4b;
+      color: #e9edef;
+      border-radius: 8px 0px 8px 8px;
+      padding: 7px 10px 6px;
+      max-width: 75%;
+      font-size: 13.5px;
+      line-height: 1.4;
+      position: relative;
+      box-shadow: 0 1px 2px rgba(0,0,0,.35);
+    }
+    .msg-out-a::after {
+      content: '';
+      position: absolute;
+      right: -6px; top: 0;
+      border: 6px solid transparent;
+      border-top-color: #005c4b;
+      border-left-color: #005c4b;
+    }
+
+    .msg-meta-a {
+      font-size: 11px;
+      color: rgba(233,237,239,0.55);
+      text-align: right;
+      margin-top: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 4px;
+    }
+    .ticks { color: #53bdeb; font-size: 13px; }
+
+    .input-a {
+      background: #1f2c34;
+      padding: 8px 10px;
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+    }
+    .input-a-field {
+      flex: 1;
+      background: #2a3942;
+      border: none;
+      border-radius: 20px;
+      padding: 9px 14px;
+      color: #e9edef;
+      font-size: 14px;
+      outline: none;
+      resize: none;
+      min-height: 40px;
+      max-height: 100px;
+      font-family: inherit;
+      line-height: 1.4;
+    }
+    .input-a-field::placeholder { color: #8696a0; }
+    .btn-send-a {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: #00a884;
+      border: none;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .btn-send-a svg { color: white; }
+
+    /* ── OPÇÃO B: iMessage-style limpo ── */
+    .preview-b { background: #1a1a2e; }
+    .preview-b .chat-bg {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 16px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .msg-group-b { display: flex; flex-direction: column; gap: 2px; margin-bottom: 12px; }
+    .msg-group-b.out { align-items: flex-end; }
+    .msg-group-b.in { align-items: flex-start; }
+
+    .sender-name-b {
+      font-size: 11px;
+      font-weight: 600;
+      color: #7c3aed;
+      margin-bottom: 3px;
+      padding-left: 4px;
+    }
+
+    .msg-in-b {
+      background: #2d2d44;
+      color: #e2e8f0;
+      border-radius: 18px 18px 18px 4px;
+      padding: 9px 14px;
+      max-width: 78%;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+    .msg-out-b {
+      background: #5B2ECC;
+      color: #fff;
+      border-radius: 18px 18px 4px 18px;
+      padding: 9px 14px;
+      max-width: 78%;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+    .msg-meta-b {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 3px;
+      padding: 0 4px;
+    }
+    .msg-group-b.out .msg-meta-b { text-align: right; }
+
+    .input-b {
+      background: #13131f;
+      border-top: 1px solid #1e1e35;
+      padding: 10px 12px;
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+    }
+    .input-b-field {
+      flex: 1;
+      background: #1e1e35;
+      border: 1px solid #2d2d4e;
+      border-radius: 20px;
+      padding: 9px 14px;
+      color: #e2e8f0;
+      font-size: 14px;
+      outline: none;
+      resize: none;
+      min-height: 38px;
+      font-family: inherit;
+      line-height: 1.4;
+    }
+    .input-b-field::placeholder { color: #475569; }
+    .btn-send-b {
+      width: 38px; height: 38px;
+      border-radius: 50%;
+      background: #5B2ECC;
+      border: none;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    /* ── OPÇÃO C: Moderno com avatar ── */
+    .preview-c { background: #0f0f1a; }
+    .preview-c .chat-bg {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px 14px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .msg-row-c {
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+    }
+    .msg-row-c.out { flex-direction: row-reverse; }
+
+    .avatar-c {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700;
+    }
+    .avatar-sdr { background: #5B2ECC; color: white; }
+    .avatar-lead { background: #0f766e; color: white; }
+
+    .msg-bubble-c {
+      max-width: 74%;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .msg-in-c {
+      background: #1e293b;
+      color: #e2e8f0;
+      border-radius: 4px 16px 16px 16px;
+      padding: 9px 13px;
+      font-size: 13.5px;
+      line-height: 1.45;
+    }
+    .msg-out-c {
+      background: linear-gradient(135deg, #5B2ECC, #7B52E8);
+      color: white;
+      border-radius: 16px 4px 16px 16px;
+      padding: 9px 13px;
+      font-size: 13.5px;
+      line-height: 1.45;
+    }
+    .msg-meta-c {
+      font-size: 10.5px;
+      color: #475569;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .msg-row-c.out .msg-meta-c { justify-content: flex-end; }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; }
+
+    .divider-c {
+      text-align: center;
+      font-size: 11px;
+      color: #475569;
+      position: relative;
+    }
+    .divider-c::before, .divider-c::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      width: 30%;
+      height: 1px;
+      background: #1e293b;
+    }
+    .divider-c::before { left: 0; }
+    .divider-c::after { right: 0; }
+
+    .input-c {
+      background: #13131f;
+      border-top: 1px solid #1e1e35;
+      padding: 10px 14px;
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+    }
+    .input-c-field {
+      flex: 1;
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid #2d2d4e;
+      border-radius: 0;
+      padding: 6px 2px;
+      color: #e2e8f0;
+      font-size: 14px;
+      outline: none;
+      resize: none;
+      min-height: 32px;
+      font-family: inherit;
+      line-height: 1.4;
+      transition: border-color 0.2s;
+    }
+    .input-c-field:focus { border-bottom-color: #5B2ECC; }
+    .input-c-field::placeholder { color: #475569; }
+    .btn-send-c {
+      width: 36px; height: 36px;
+      border-radius: 8px;
+      background: #5B2ECC;
+      border: none;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    /* selection state */
+    .selection-bar {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1e1e35;
+      border: 1px solid #5B2ECC;
+      border-radius: 12px;
+      padding: 12px 24px;
+      font-size: 14px;
+      color: #a78bfa;
+      font-weight: 600;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    .selection-bar.visible { opacity: 1; }
+
+    .send-icon { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  </style>
+</head>
+<body>
+
+  <h1>Chat Layout — 3 Opções</h1>
+  <p class="subtitle">Clique em uma opção para selecioná-la. Baseados no visual do WhatsApp, iMessage e Telegram.</p>
+
+  <div class="options-row">
+
+    <!-- ── OPÇÃO A ── -->
+    <div class="option-card" id="card-a" onclick="select('a')">
+      <div class="option-label">
+        <span>A — WhatsApp fiel</span>
+        <div class="check" id="check-a">✓</div>
+      </div>
+      <div class="chat-preview preview-a">
+        <div class="chat-bg">
+
+          <div class="msg-in-a">
+            Olá! Vi que vocês trabalham com radiologia. Tenho interesse em conhecer melhor o sistema.
+            <div class="msg-meta-a">10:42</div>
+          </div>
+
+          <div class="msg-out-a">
+            Oi! Que ótimo ter seu contato 😊 Me conta um pouco mais — vocês já usam algum sistema de gestão de imagens hoje?
+            <div class="msg-meta-a">10:43 <span class="ticks">✓✓</span></div>
+          </div>
+
+          <div class="msg-in-a">
+            Usamos algo bem básico, mas tem travado muito. Somos uma clínica média, cerca de 80 exames por dia.
+            <div class="msg-meta-a">10:45</div>
+          </div>
+
+          <div class="msg-out-a">
+            Entendo! 80 exames/dia é um volume considerável. Qual o maior problema hoje — lentidão, perda de laudos, integração com o sistema do médico?
+            <div class="msg-meta-a">10:46 <span class="ticks">✓✓</span></div>
+          </div>
+
+          <div class="msg-in-a">
+            Principalmente lentidão e o laudo às vezes some. Já tivemos problemas sérios com isso.
+            <div class="msg-meta-a">10:48</div>
+          </div>
+
+        </div>
+        <div class="input-a">
+          <div class="input-a-field" contenteditable="true" data-placeholder="Mensagem">Ótimo, posso te apresentar como o RadiFlex resolve exatamente isso...</div>
+          <button class="btn-send-a">
+            <svg class="send-icon" style="color:white" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── OPÇÃO B ── -->
+    <div class="option-card" id="card-b" onclick="select('b')">
+      <div class="option-label">
+        <span>B — iMessage limpo</span>
+        <span class="badge">Recomendado</span>
+        <div class="check" id="check-b">✓</div>
+      </div>
+      <div class="chat-preview preview-b">
+        <div class="chat-bg">
+
+          <div class="msg-group-b in">
+            <div class="sender-name-b">Clínica Imagem Plus</div>
+            <div class="msg-in-b">Olá! Vi que vocês trabalham com radiologia. Tenho interesse em conhecer melhor o sistema.</div>
+            <div class="msg-meta-b">10:42</div>
+          </div>
+
+          <div class="msg-group-b out">
+            <div class="msg-out-b">Oi! Que ótimo ter seu contato 😊 Me conta um pouco mais — vocês já usam algum sistema de gestão de imagens hoje?</div>
+            <div class="msg-meta-b">10:43 · SDR IA</div>
+          </div>
+
+          <div class="msg-group-b in">
+            <div class="msg-in-b">Usamos algo bem básico, mas tem travado muito. Somos uma clínica média, cerca de 80 exames por dia.</div>
+            <div class="msg-meta-b">10:45</div>
+          </div>
+
+          <div class="msg-group-b out">
+            <div class="msg-out-b">Entendo! 80 exames/dia é um volume considerável. Qual o maior problema hoje?</div>
+            <div class="msg-meta-b">10:46 · SDR IA</div>
+          </div>
+
+          <div class="msg-group-b in">
+            <div class="msg-in-b">Principalmente lentidão e o laudo às vezes some. Já tivemos problemas sérios.</div>
+            <div class="msg-meta-b">10:48</div>
+          </div>
+
+        </div>
+        <div class="input-b">
+          <div class="input-b-field" contenteditable="true">Ótimo, posso te apresentar como resolvemos isso...</div>
+          <button class="btn-send-b">
+            <svg class="send-icon" style="color:white" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── OPÇÃO C ── -->
+    <div class="option-card" id="card-c" onclick="select('c')">
+      <div class="option-label">
+        <span>C — Avatar + gradiente</span>
+        <div class="check" id="check-c">✓</div>
+      </div>
+      <div class="chat-preview preview-c">
+        <div class="chat-bg">
+
+          <div class="divider-c">Hoje · 10:42</div>
+
+          <div class="msg-row-c in">
+            <div class="avatar-c avatar-lead">CI</div>
+            <div class="msg-bubble-c">
+              <div class="msg-in-c">Olá! Vi que vocês trabalham com radiologia. Tenho interesse em conhecer melhor o sistema.</div>
+              <div class="msg-meta-c">10:42</div>
+            </div>
+          </div>
+
+          <div class="msg-row-c out">
+            <div class="avatar-c avatar-sdr">IA</div>
+            <div class="msg-bubble-c">
+              <div class="msg-out-c">Oi! Que ótimo 😊 Vocês já usam algum sistema de gestão de imagens hoje?</div>
+              <div class="msg-meta-c"><span class="status-dot"></span>10:43 · Enviado</div>
+            </div>
+          </div>
+
+          <div class="msg-row-c in">
+            <div class="avatar-c avatar-lead">CI</div>
+            <div class="msg-bubble-c">
+              <div class="msg-in-c">Usamos algo básico mas trava muito. ~80 exames/dia.</div>
+              <div class="msg-meta-c">10:45</div>
+            </div>
+          </div>
+
+          <div class="msg-row-c out">
+            <div class="avatar-c avatar-sdr">IA</div>
+            <div class="msg-bubble-c">
+              <div class="msg-out-c">80 exames/dia é bastante! Qual o maior problema — lentidão, laudos perdidos, integração?</div>
+              <div class="msg-meta-c"><span class="status-dot"></span>10:46 · Enviado</div>
+            </div>
+          </div>
+
+          <div class="msg-row-c in">
+            <div class="avatar-c avatar-lead">CI</div>
+            <div class="msg-bubble-c">
+              <div class="msg-in-c">Lentidão e laudo sumindo. Já tivemos problemas sérios com isso.</div>
+              <div class="msg-meta-c">10:48</div>
+            </div>
+          </div>
+
+        </div>
+        <div class="input-c">
+          <div class="input-c-field" contenteditable="true">Ótimo, posso mostrar como resolvemos...</div>
+          <button class="btn-send-c">
+            <svg class="send-icon" style="color:white" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="selection-bar" id="selbar">Nenhuma opção selecionada</div>
+
+  <script>
+    let selected = null;
+
+    function select(choice) {
+      ['a','b','c'].forEach(c => {
+        document.getElementById('card-' + c).classList.remove('selected');
+      });
+      document.getElementById('card-' + choice).classList.add('selected');
+      selected = choice;
+
+      const labels = { a: 'A — WhatsApp fiel', b: 'B — iMessage limpo (Recomendado)', c: 'C — Avatar + gradiente' };
+      const bar = document.getElementById('selbar');
+      bar.textContent = '✓ Selecionado: ' + labels[choice] + ' — Me diga no terminal qual você prefere!';
+      bar.classList.add('visible');
+    }
+  </script>
+</body>
+</html>
