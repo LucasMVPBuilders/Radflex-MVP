@@ -76,6 +76,33 @@ async function handleStart(body: any) {
     );
   }
 
+  // ===== Cache lookup (7 dias) =====
+  // Mesma combinação (cnae, batch, estado, estados) buscada nos últimos 7 dias
+  // retorna leads do BD sem chamar Apify. requiredFields são aplicados em cima.
+  if (supabase) {
+    try {
+      const cached = await findCachedRun(cnae, batch, estado, estados);
+      if (cached) {
+        const cachedLeads = await loadLeadsForRun(cached.id, requiredFields);
+        console.log(`Cache hit run=${cached.id} cnae=${cnae} batch=${batch} → ${cachedLeads.length} leads`);
+        return new Response(
+          JSON.stringify({
+            success: true,
+            status: 'done',
+            leads: cachedLeads,
+            total: cachedLeads.length,
+            fromCache: true,
+            cachedRunId: cached.id,
+            cachedAt: cached.created_at,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    } catch (e) {
+      console.error('Cache lookup failed, falling through to Apify:', e);
+    }
+  }
+
   const apifyToken = Deno.env.get('APIFY_API_TOKEN');
   if (!apifyToken) {
     return new Response(
@@ -159,7 +186,7 @@ async function handleStart(body: any) {
 }
 
 async function handlePoll(body: any) {
-  const { apifyRunId, datasetId, cnae, estado, page = 1, batch = 0, requiredFields = [] } = body;
+  const { apifyRunId, datasetId, cnae, estado, page = 1, batch = 0, estados, requiredFields = [] } = body;
 
   if (!apifyRunId || !datasetId) {
     return new Response(
@@ -241,7 +268,7 @@ async function handlePoll(body: any) {
 
   // Persiste no Supabase (assíncrono, não bloqueia resposta)
   if (supabase && leads.length > 0) {
-    persistLeads(leads, cnae, estado, page, apifyRunId, datasetId, computeUnits).catch((e) =>
+    persistLeads(leads, cnae, estado, page, batch, estados, apifyRunId, datasetId, computeUnits).catch((e) =>
       console.error('Erro ao persistir leads:', e)
     );
   }
@@ -257,6 +284,8 @@ async function persistLeads(
   cnae: string,
   estado: string | undefined,
   page: number,
+  batch: number,
+  estados: string[] | undefined,
   apifyRunId: string,
   datasetId: string,
   computeUnits: number | null = null,
@@ -267,7 +296,15 @@ async function persistLeads(
     .from('scraping_runs')
     .insert({
       source: 'search-cnae-apify',
-      filters_json: { cnae, estado: estado || null, page, apifyRunId, datasetId },
+      filters_json: {
+        cnae,
+        estado: estado || null,
+        batch,
+        estados: estados && estados.length > 0 ? estados : null,
+        page,
+        apifyRunId,
+        datasetId,
+      },
       compute_units: computeUnits,
     })
     .select('id')
@@ -304,6 +341,94 @@ async function persistLeads(
 
   const { error: leadsError } = await supabase.from('leads').insert(leadRows);
   if (leadsError) console.error('Error inserting leads:', leadsError);
+}
+
+// ===== Cache helpers =====
+const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 dias
+
+async function findCachedRun(
+  cnae: string,
+  batch: number,
+  estado: string | undefined,
+  estados: string[] | undefined,
+) {
+  if (!supabase) return null;
+
+  const since = new Date(Date.now() - CACHE_TTL_MS).toISOString();
+
+  const { data, error } = await supabase
+    .from('scraping_runs')
+    .select('id, filters_json, created_at')
+    .eq('source', 'search-cnae-apify')
+    .gte('created_at', since)
+    .filter('filters_json->>cnae', 'eq', cnae)
+    .filter('filters_json->>batch', 'eq', String(batch))
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  if (error) {
+    console.error('Cache lookup error:', error);
+    return null;
+  }
+
+  return (data ?? []).find((row: any) =>
+    sameStateFilter(row.filters_json ?? {}, estado, estados)
+  ) ?? null;
+}
+
+function sameStateFilter(
+  filters: any,
+  estado: string | undefined,
+  estados: string[] | undefined,
+): boolean {
+  const filterEstado = filters.estado ?? null;
+  const filterEstados = Array.isArray(filters.estados) && filters.estados.length > 0
+    ? filters.estados
+    : null;
+
+  const inputEstado = estado ?? null;
+  const inputEstados = Array.isArray(estados) && estados.length > 0 ? estados : null;
+
+  if (filterEstado !== inputEstado) return false;
+
+  if (filterEstados === null && inputEstados === null) return true;
+  if (filterEstados === null || inputEstados === null) return false;
+  if (filterEstados.length !== inputEstados.length) return false;
+
+  // Comparação ordem-agnóstica (estados são unidos às search strings, ordem não importa)
+  const a = [...filterEstados].sort();
+  const b = [...inputEstados].sort();
+  return a.every((v, i) => v === b[i]);
+}
+
+async function loadLeadsForRun(runId: string, requiredFields: string[]): Promise<Lead[]> {
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from('leads')
+    .select('raw')
+    .eq('run_id', runId);
+
+  if (error) {
+    console.error('Cache leads load error:', error);
+    return [];
+  }
+
+  const leads = (data ?? [])
+    .map((r: any) => r.raw)
+    .filter((l: any): l is Lead => !!l && typeof l === 'object' && typeof l.companyName === 'string');
+
+  return applyRequiredFieldsToLeads(leads, requiredFields);
+}
+
+function applyRequiredFieldsToLeads(leads: Lead[], requiredFields: string[]): Lead[] {
+  if (!requiredFields || requiredFields.length === 0) return leads;
+  return leads.filter((l) => {
+    if (requiredFields.includes('has_phone') && !l.phone) return false;
+    if (requiredFields.includes('has_website') && !l.website) return false;
+    if (requiredFields.includes('has_rating') && !(l.rating && l.rating > 0)) return false;
+    return true;
+  });
 }
 
 interface Lead {

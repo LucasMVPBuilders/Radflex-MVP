@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Shield, CheckCircle2, Clock, XCircle, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { MessageTemplate, DispatchChannel } from "@/lib/dispatch/types";
 import { interpolate } from "@/lib/dispatch/utils";
@@ -176,7 +176,13 @@ export function TemplateEditor({
             <SelectContent>
               {templates.map((t) => (
                 <SelectItem key={t.id} value={t.id}>
-                  {t.name}
+                  <span className="flex items-center gap-2">
+                    {t.is_hsm && <Shield className="h-3 w-3 text-primary" />}
+                    {t.name}
+                    {t.is_hsm && (
+                      <span className="text-xs text-muted-foreground">(HSM)</span>
+                    )}
+                  </span>
                 </SelectItem>
               ))}
             </SelectContent>
@@ -192,6 +198,18 @@ export function TemplateEditor({
           </Button>
         )}
       </div>
+
+      {/* HSM info banner */}
+      {selectedTemplate?.is_hsm && (
+        <HsmInfoBanner
+          status={(selectedTemplate.approval_status ?? "unknown") as
+            | "approved"
+            | "pending"
+            | "rejected"
+            | "unknown"}
+          contentSid={selectedTemplate.content_sid ?? null}
+        />
+      )}
 
       {/* Editor */}
       {(isNew || selectedTemplate) && (
@@ -261,6 +279,57 @@ export function TemplateEditor({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function HsmInfoBanner({
+  status,
+  contentSid,
+}: {
+  status: "approved" | "pending" | "rejected" | "unknown";
+  contentSid: string | null;
+}) {
+  const config = {
+    approved: {
+      cls: "bg-green-500/10 border-green-500/30 text-green-700",
+      icon: CheckCircle2,
+      msg: "Template HSM aprovado pelo Meta — pode disparar para qualquer lead, mesmo fora da janela 24h.",
+    },
+    pending: {
+      cls: "bg-yellow-500/10 border-yellow-500/30 text-yellow-800",
+      icon: Clock,
+      msg: "Template em análise pelo Meta. Aguarde aprovação antes de disparar (pode falhar).",
+    },
+    rejected: {
+      cls: "bg-destructive/10 border-destructive/30 text-destructive",
+      icon: XCircle,
+      msg: "Template rejeitado pelo Meta. Disparos vão falhar — revise o template no Twilio.",
+    },
+    unknown: {
+      cls: "bg-muted border-border text-muted-foreground",
+      icon: Info,
+      msg: "Status de aprovação desconhecido. Atualize manualmente em /disparos/templates.",
+    },
+  };
+  const c = config[status];
+  const Icon = c.icon;
+
+  return (
+    <div className={`flex items-start gap-2 rounded-md border p-2.5 text-xs ${c.cls}`}>
+      <Shield className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+      <div className="flex-1 space-y-1">
+        <div className="flex items-center gap-1.5 font-semibold">
+          <Icon className="h-3 w-3" />
+          Template HSM
+        </div>
+        <p>{c.msg}</p>
+        {contentSid && (
+          <p className="font-mono-data text-[10px] opacity-70 truncate">
+            {contentSid}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

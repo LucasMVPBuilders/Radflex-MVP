@@ -8,6 +8,7 @@ import {
   sendPipelineMessage,
   updatePipelineStage,
   createPipelineStage,
+  deletePipelineStage,
 } from "@/lib/api/pipeline";
 import { ConversationMessage, PipelineLead, PipelineStage } from "@/lib/pipeline/types";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -20,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp, MessageSquareText, Settings2, Send, RefreshCw } from "lucide-react";
+import { ArrowDown, ArrowUp, MessageSquareText, Settings2, Send, RefreshCw, Trash2, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 function formatTimestamp(value: string | null) {
@@ -490,6 +491,31 @@ const Pipeline = () => {
     }
   };
 
+  const handleColorChange = async (stage: PipelineStage, color: string) => {
+    try {
+      await updatePipelineStage(stage.id, { color });
+      setStages((current) =>
+        current.map((item) => (item.id === stage.id ? { ...item, color } : item))
+      );
+    } catch (error) {
+      toast.error("Erro ao atualizar a cor.");
+      console.error(error);
+    }
+  };
+
+  const handleDeleteStage = async (stage: PipelineStage) => {
+    if (!confirm(`Remover a etapa "${stage.name}"? Essa ação não pode ser desfeita.`)) {
+      return;
+    }
+    try {
+      await deletePipelineStage(stage.id);
+      toast.success(`Etapa "${stage.name}" removida.`);
+      await loadPipeline();
+    } catch (error: any) {
+      toast.error(error.message ?? "Erro ao remover a etapa.");
+    }
+  };
+
   const handleToggleStage = async (stage: PipelineStage) => {
     try {
       await updatePipelineStage(stage.id, { isActive: !stage.isActive });
@@ -604,43 +630,6 @@ const Pipeline = () => {
           </div>
         </header>
 
-        {!loading && (
-          <div className="flex gap-4 overflow-x-auto pb-2">
-            {groupedLeads.map(({ stage, leads: stageLeads }) => {
-              const color = stage.color ?? "#94A3B8";
-              const total = leads.filter((l) => l.currentStageId === stage.id).length;
-              const unread = leads.filter((l) => l.currentStageId === stage.id && l.unreadCount > 0).length;
-              return (
-                <div
-                  key={stage.id}
-                  className="relative w-72 shrink-0 overflow-hidden rounded-2xl border bg-card/80 px-5 py-4"
-                  style={{ borderTop: `3px solid ${color}` }}
-                >
-                  {/* decorative circle */}
-                  <div
-                    className="pointer-events-none absolute -right-4 -top-4 h-20 w-20 rounded-full opacity-10"
-                    style={{ backgroundColor: color }}
-                  />
-                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground truncate pr-8">
-                    {stage.name}
-                  </p>
-                  <p className="mt-1 text-3xl font-bold tabular-nums" style={{ color }}>
-                    {total}
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    lead{total !== 1 ? "s" : ""}
-                    {unread > 0 && (
-                      <span className="ml-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: `${color}22`, color }}>
-                        {unread} não lido{unread > 1 ? "s" : ""}
-                      </span>
-                    )}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
         {loading ? (
           <Card>
             <CardContent className="p-6 text-sm text-muted-foreground">
@@ -648,68 +637,112 @@ const Pipeline = () => {
             </CardContent>
           </Card>
         ) : (
-          <div className="flex gap-4 overflow-x-auto pb-4">
-            {groupedLeads.map(({ stage, leads: stageLeads }) => (
-              <section
-                key={stage.id}
-                className="flex w-72 shrink-0 flex-col rounded-2xl border bg-card/80 p-3"
-                style={{ maxHeight: "calc(100vh - 180px)" }}
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={() => void handleDropOnStage(stage.id)}
-              >
-                <div className="mb-3 flex shrink-0 items-center justify-between">
-                  <div>
-                    <h2 className="font-semibold">{stage.name}</h2>
-                    <p className="text-xs text-muted-foreground">
-                      {stageLeads.length} lead{stageLeads.length !== 1 ? "s" : ""}
+          // Single overflow-x-auto wrapper: stat row + column row scroll together.
+          // Both inner rows use `min-w-max` so they extend past the viewport;
+          // the parent's single scrollbar drives both.
+          <div className="overflow-x-auto pb-4 -mx-1 px-1">
+            {/* Stat cards row */}
+            <div className="flex gap-4 min-w-max mb-4">
+              {groupedLeads.map(({ stage }) => {
+                const color = stage.color ?? "#94A3B8";
+                const total = leads.filter((l) => l.currentStageId === stage.id).length;
+                const unread = leads.filter((l) => l.currentStageId === stage.id && l.unreadCount > 0).length;
+                return (
+                  <div
+                    key={`stat-${stage.id}`}
+                    className="relative w-72 shrink-0 overflow-hidden rounded-2xl border bg-card/80 px-5 py-4"
+                    style={{ borderTop: `3px solid ${color}` }}
+                  >
+                    <div
+                      className="pointer-events-none absolute -right-4 -top-4 h-20 w-20 rounded-full opacity-10"
+                      style={{ backgroundColor: color }}
+                    />
+                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground truncate pr-8">
+                      {stage.name}
+                    </p>
+                    <p className="mt-1 text-3xl font-bold tabular-nums" style={{ color }}>
+                      {total}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      lead{total !== 1 ? "s" : ""}
+                      {unread > 0 && (
+                        <span
+                          className="ml-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                          style={{ backgroundColor: `${color}22`, color }}
+                        >
+                          {unread} não lido{unread > 1 ? "s" : ""}
+                        </span>
+                      )}
                     </p>
                   </div>
-                  <span
-                    className="h-2.5 w-2.5 rounded-full"
-                    style={{ backgroundColor: stage.color ?? "#94A3B8" }}
-                  />
-                </div>
+                );
+              })}
+            </div>
 
-                <div className="flex-1 overflow-y-auto space-y-3 pr-0.5">
-                  {stageLeads.length === 0 ? (
-                    <div className="rounded-xl border border-dashed p-4 text-xs text-muted-foreground">
-                      Nenhum lead nesta etapa.
+            {/* Kanban columns row */}
+            <div className="flex gap-4 min-w-max">
+              {groupedLeads.map(({ stage, leads: stageLeads }) => (
+                <section
+                  key={stage.id}
+                  className="flex w-72 shrink-0 flex-col rounded-2xl border bg-card/80 p-3"
+                  style={{ height: "calc(100vh - 320px)", minHeight: "420px" }}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={() => void handleDropOnStage(stage.id)}
+                >
+                  <div className="mb-3 flex shrink-0 items-center justify-between">
+                    <div>
+                      <h2 className="font-semibold">{stage.name}</h2>
+                      <p className="text-xs text-muted-foreground">
+                        {stageLeads.length} lead{stageLeads.length !== 1 ? "s" : ""}
+                      </p>
                     </div>
-                  ) : (
-                    stageLeads.map((lead) => (
-                      <button
-                        key={lead.id}
-                        type="button"
-                        draggable
-                        onDragStart={() => setDraggedLeadId(lead.id)}
-                        onClick={() => void openLead(lead)}
-                        className="w-full rounded-2xl border bg-background p-4 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="font-semibold">{lead.leadSnapshot.companyName}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {lead.contactPhone || lead.contactEmail || "Sem contato"}
-                            </p>
+                    <span
+                      className="h-2.5 w-2.5 rounded-full"
+                      style={{ backgroundColor: stage.color ?? "#94A3B8" }}
+                    />
+                  </div>
+
+                  <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pr-1">
+                    {stageLeads.length === 0 ? (
+                      <div className="rounded-xl border border-dashed p-4 text-xs text-muted-foreground">
+                        Nenhum lead nesta etapa.
+                      </div>
+                    ) : (
+                      stageLeads.map((lead) => (
+                        <button
+                          key={lead.id}
+                          type="button"
+                          draggable
+                          onDragStart={() => setDraggedLeadId(lead.id)}
+                          onClick={() => void openLead(lead)}
+                          className="w-full rounded-2xl border bg-background p-4 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="font-semibold">{lead.leadSnapshot.companyName}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {lead.contactPhone || lead.contactEmail || "Sem contato"}
+                              </p>
+                            </div>
+                            {lead.unreadCount > 0 ? (
+                              <span className="rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
+                                {lead.unreadCount} novo{lead.unreadCount > 1 ? "s" : ""}
+                              </span>
+                            ) : null}
                           </div>
-                          {lead.unreadCount > 0 ? (
-                            <span className="rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
-                              {lead.unreadCount} novo{lead.unreadCount > 1 ? "s" : ""}
-                            </span>
-                          ) : null}
-                        </div>
-                        <p className="mt-3 line-clamp-3 text-sm text-foreground/90">
-                          {lead.latestMessagePreview || "Sem mensagem registrada ainda."}
-                        </p>
-                        <p className="mt-3 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                          {formatTimestamp(lead.latestMessageAt)}
-                        </p>
-                      </button>
-                    ))
-                  )}
-                </div>
-              </section>
-            ))}
+                          <p className="mt-3 line-clamp-3 text-sm text-foreground/90">
+                            {lead.latestMessagePreview || "Sem mensagem registrada ainda."}
+                          </p>
+                          <p className="mt-3 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                            {formatTimestamp(lead.latestMessageAt)}
+                          </p>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </section>
+              ))}
+            </div>
           </div>
         )}
       </main>
@@ -893,50 +926,124 @@ const Pipeline = () => {
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="space-y-3">
-              {stages.map((stage) => (
-                <Card key={stage.id}>
-                  <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-center">
-                    <div className="flex-1 space-y-2">
-                      <Label htmlFor={`stage-${stage.id}`}>Nome da etapa</Label>
-                      <Input
-                        id={`stage-${stage.id}`}
-                        value={stage.name}
-                        onChange={(event) =>
-                          setStages((current) =>
-                            current.map((item) =>
-                              item.id === stage.id ? { ...item, name: event.target.value } : item
-                            )
-                          )
-                        }
-                        onBlur={(event) => void handleRenameStage(stage, event.target.value)}
-                      />
-                    </div>
+            <div className="space-y-2">
+              {[...stages]
+                .sort((a, b) => a.position - b.position)
+                .map((stage, idx) => (
+                  <Card
+                    key={stage.id}
+                    className={!stage.isActive ? "opacity-60" : ""}
+                  >
+                    <CardContent className="flex items-center gap-3 p-3">
+                      {/* Position number + color dot/picker */}
+                      <div className="flex flex-col items-center gap-1 shrink-0">
+                        <span className="text-[10px] font-mono-data text-muted-foreground">
+                          #{idx + 1}
+                        </span>
+                        <label
+                          className="relative h-7 w-7 rounded-full border-2 cursor-pointer hover:scale-110 transition-transform"
+                          style={{
+                            backgroundColor: stage.color ?? "#94A3B8",
+                            borderColor: stage.color ?? "#94A3B8",
+                          }}
+                          title="Clique pra mudar a cor"
+                        >
+                          <input
+                            type="color"
+                            value={stage.color ?? "#94A3B8"}
+                            onChange={(e) =>
+                              void handleColorChange(stage, e.target.value)
+                            }
+                            className="absolute inset-0 opacity-0 cursor-pointer"
+                          />
+                        </label>
+                      </div>
 
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => void handleReorderStage(stage.id, -1)}
-                        aria-label={`Mover ${stage.name} para cima`}
-                      >
-                        <ArrowUp className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => void handleReorderStage(stage.id, 1)}
-                        aria-label={`Mover ${stage.name} para baixo`}
-                      >
-                        <ArrowDown className="h-4 w-4" />
-                      </Button>
-                      <Button variant="outline" onClick={() => void handleToggleStage(stage)}>
-                        {stage.isActive ? "Desativar" : "Ativar"}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                      {/* Name input + system badge */}
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <Input
+                            id={`stage-${stage.id}`}
+                            value={stage.name}
+                            onChange={(event) =>
+                              setStages((current) =>
+                                current.map((item) =>
+                                  item.id === stage.id
+                                    ? { ...item, name: event.target.value }
+                                    : item,
+                                ),
+                              )
+                            }
+                            onBlur={(event) =>
+                              void handleRenameStage(stage, event.target.value)
+                            }
+                            className="h-8 text-sm"
+                          />
+                          {stage.isSystem && (
+                            <span
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground shrink-0"
+                              title="Etapa do sistema — não pode ser removida"
+                            >
+                              <Lock className="h-2.5 w-2.5" />
+                              Sistema
+                            </span>
+                          )}
+                          {!stage.isActive && (
+                            <span className="text-[10px] font-medium text-muted-foreground shrink-0">
+                              Desativada
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground font-mono-data">
+                          {stage.key}
+                        </p>
+                      </div>
+
+                      {/* Reorder + activate/deactivate + delete */}
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => void handleReorderStage(stage.id, -1)}
+                          disabled={idx === 0}
+                          aria-label="Mover para cima"
+                        >
+                          <ArrowUp className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => void handleReorderStage(stage.id, 1)}
+                          disabled={idx === stages.length - 1}
+                          aria-label="Mover para baixo"
+                        >
+                          <ArrowDown className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-xs"
+                          onClick={() => void handleToggleStage(stage)}
+                        >
+                          {stage.isActive ? "Desativar" : "Ativar"}
+                        </Button>
+                        {!stage.isSystem && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => void handleDeleteStage(stage)}
+                            aria-label="Remover etapa"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
             </div>
 
             <Card>
@@ -944,15 +1051,24 @@ const Pipeline = () => {
                 <CardTitle className="text-base">Nova etapa</CardTitle>
                 <CardDescription>
                   Crie uma coluna adicional para acompanhar outra fase do processo comercial.
+                  Etapas customizadas podem ser removidas a qualquer momento.
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-3 md:flex-row">
                 <Input
                   value={newStageName}
                   onChange={(event) => setNewStageName(event.target.value)}
-                  placeholder="Nome da nova etapa"
+                  placeholder="Nome da nova etapa (ex: Negociação)"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && newStageName.trim()) {
+                      void handleCreateStage();
+                    }
+                  }}
                 />
-                <Button onClick={() => void handleCreateStage()} disabled={!newStageName.trim()}>
+                <Button
+                  onClick={() => void handleCreateStage()}
+                  disabled={!newStageName.trim()}
+                >
                   Criar etapa
                 </Button>
               </CardContent>

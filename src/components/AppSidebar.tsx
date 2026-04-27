@@ -1,4 +1,4 @@
-import { Search, BarChart3, Download, Plus, X, Send, KanbanSquare, Bot } from "lucide-react";
+import { Search, BarChart3, Download, Plus, X, Send, KanbanSquare, Bot, Settings } from "lucide-react";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -97,6 +97,14 @@ export const AppSidebar = ({
         >
           <Bot className="h-4 w-4" />
           SDR
+        </NavLink>
+        <NavLink
+          to="/configuracoes"
+          className="flex items-center gap-2 px-3 py-2 rounded text-sm text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+          activeClassName="bg-sidebar-primary text-sidebar-primary-foreground"
+        >
+          <Settings className="h-4 w-4" />
+          Configurações
         </NavLink>
       </div>
 

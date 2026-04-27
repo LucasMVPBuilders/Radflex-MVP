@@ -1,4 +1,7 @@
+// @ts-expect-error - Deno JSR side-effect import (resolved at runtime in Supabase)
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+// @ts-expect-error - Deno JSR import (resolved at runtime in Supabase)
+import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 declare const Deno: {
   env: {
@@ -14,10 +17,51 @@ const corsHeaders = {
 
 const TWILIO_ACCOUNT_SID = Deno.env.get('TWILIO_ACCOUNT_SID') ?? '';
 const TWILIO_AUTH_TOKEN = Deno.env.get('TWILIO_AUTH_TOKEN') ?? '';
-const TWILIO_WHATSAPP_FROM = Deno.env.get('TWILIO_WHATSAPP_FROM') ?? '';
-const TWILIO_SMS_FROM = Deno.env.get('TWILIO_SMS_FROM') ?? '';
+const TWILIO_WHATSAPP_FROM_FALLBACK = Deno.env.get('TWILIO_WHATSAPP_FROM') ?? '';
+const TWILIO_SMS_FROM_FALLBACK = Deno.env.get('TWILIO_SMS_FROM') ?? '';
 const SENDGRID_API_KEY = Deno.env.get('SENDGRID_API_KEY') ?? '';
-const SENDGRID_FROM_EMAIL = Deno.env.get('SENDGRID_FROM_EMAIL') ?? '';
+const SENDGRID_FROM_EMAIL_FALLBACK = Deno.env.get('SENDGRID_FROM_EMAIL') ?? '';
+const SUPABASE_URL_FOR_CALLBACK = Deno.env.get('SUPABASE_URL') ?? '';
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+
+// Loads sender values from app_settings, falling back to env vars when the row
+// has a null/empty value for that field. Edge Function instance is short-lived
+// so a fresh fetch per invocation is fine for this volume.
+async function loadSenderConfig(): Promise<{
+  whatsappFrom: string;
+  smsFrom: string;
+  sendgridFrom: string;
+}> {
+  const fallback = {
+    whatsappFrom: TWILIO_WHATSAPP_FROM_FALLBACK,
+    smsFrom: TWILIO_SMS_FROM_FALLBACK,
+    sendgridFrom: SENDGRID_FROM_EMAIL_FALLBACK,
+  };
+
+  if (!SUPABASE_URL_FOR_CALLBACK || !SUPABASE_SERVICE_ROLE_KEY) {
+    return fallback;
+  }
+
+  try {
+    const sb = createClient(SUPABASE_URL_FOR_CALLBACK, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data } = await sb
+      .from('app_settings')
+      .select('twilio_whatsapp_from, twilio_sms_from, sendgrid_from_email')
+      .eq('id', true)
+      .maybeSingle();
+
+    return {
+      whatsappFrom: (data?.twilio_whatsapp_from as string | null) || fallback.whatsappFrom,
+      smsFrom: (data?.twilio_sms_from as string | null) || fallback.smsFrom,
+      sendgridFrom: (data?.sendgrid_from_email as string | null) || fallback.sendgridFrom,
+    };
+  } catch (e) {
+    console.error('Failed to load app_settings, using env fallbacks:', e);
+    return fallback;
+  }
+}
 
 type Channel = 'whatsapp' | 'sms' | 'email';
 
@@ -26,9 +70,15 @@ interface SendMessagePayload {
   to: string;
   message: string;
   subject?: string; // required for email, ignored otherwise
+  // HSM (WhatsApp pre-approved template) — only valid for channel=whatsapp
+  contentSid?: string;
+  contentVariables?: Record<string, string>;
 }
 
-async function sendViaTwilio(payload: SendMessagePayload) {
+async function sendViaTwilio(
+  payload: SendMessagePayload,
+  config: { whatsappFrom: string; smsFrom: string },
+) {
   if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN) {
     throw new Error('Twilio credentials not configured');
   }
@@ -36,22 +86,37 @@ async function sendViaTwilio(payload: SendMessagePayload) {
   const url = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
 
   const from =
-    payload.channel === 'whatsapp'
-      ? TWILIO_WHATSAPP_FROM
-      : TWILIO_SMS_FROM;
+    payload.channel === 'whatsapp' ? config.whatsappFrom : config.smsFrom;
 
   if (!from) {
     throw new Error(
       payload.channel === 'whatsapp'
-        ? 'TWILIO_WHATSAPP_FROM not configured'
-        : 'TWILIO_SMS_FROM not configured'
+        ? 'TWILIO_WHATSAPP_FROM não configurado (defina em /configuracoes ou nos secrets).'
+        : 'TWILIO_SMS_FROM não configurado (defina em /configuracoes ou nos secrets).'
     );
   }
 
   const body = new URLSearchParams();
   body.set('From', payload.channel === 'whatsapp' ? `whatsapp:${from.replace('whatsapp:', '')}` : from);
   body.set('To', payload.channel === 'whatsapp' ? `whatsapp:${payload.to.replace('whatsapp:', '')}` : payload.to);
-  body.set('Body', payload.message);
+
+  // HSM mode (WhatsApp pre-approved template) takes priority over freeform Body.
+  // ContentSid + ContentVariables let Twilio render the template approved by
+  // Meta — required to start conversations outside the 24h window.
+  if (payload.contentSid && payload.channel === 'whatsapp') {
+    body.set('ContentSid', payload.contentSid);
+    if (payload.contentVariables && Object.keys(payload.contentVariables).length > 0) {
+      body.set('ContentVariables', JSON.stringify(payload.contentVariables));
+    }
+  } else {
+    body.set('Body', payload.message);
+  }
+
+  // Status callback so Twilio notifies us about queued/sent/delivered/read/failed
+  // transitions and we can keep dispatch_logs in sync.
+  if (SUPABASE_URL_FOR_CALLBACK) {
+    body.set('StatusCallback', `${SUPABASE_URL_FOR_CALLBACK}/functions/v1/twilio-status-webhook`);
+  }
 
   const basicAuth = btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
 
@@ -74,17 +139,22 @@ async function sendViaTwilio(payload: SendMessagePayload) {
   return data;
 }
 
-async function sendEmailViaSendGrid(to: string, subject: string, body: string) {
+async function sendEmailViaSendGrid(
+  to: string,
+  subject: string,
+  body: string,
+  fromEmail: string,
+) {
   if (!SENDGRID_API_KEY) {
     throw new Error('SENDGRID_API_KEY not configured');
   }
-  if (!SENDGRID_FROM_EMAIL) {
-    throw new Error('SENDGRID_FROM_EMAIL not configured');
+  if (!fromEmail) {
+    throw new Error('SENDGRID_FROM_EMAIL não configurado (defina em /configuracoes ou nos secrets).');
   }
 
   const payload = {
     personalizations: [{ to: [{ email: to }] }],
-    from: { email: SENDGRID_FROM_EMAIL },
+    from: { email: fromEmail },
     subject,
     content: [{ type: 'text/plain', value: body }],
   };
@@ -114,7 +184,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { channel, to, message, subject } = (await req.json()) as SendMessagePayload;
+    const { channel, to, message, subject, contentSid, contentVariables } =
+      (await req.json()) as SendMessagePayload;
 
     if (!channel || !to || !message) {
       return new Response(
@@ -131,6 +202,9 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Load sender config (DB → env fallback) once per invocation
+    const senderConfig = await loadSenderConfig();
+
     // Email → SendGrid (subject required)
     if (channel === 'email') {
       if (!subject) {
@@ -139,7 +213,12 @@ Deno.serve(async (req) => {
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      const result = await sendEmailViaSendGrid(to, subject, message);
+      const result = await sendEmailViaSendGrid(
+        to,
+        subject,
+        message,
+        senderConfig.sendgridFrom,
+      );
       return new Response(
         JSON.stringify({ success: true, data: result }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -147,7 +226,10 @@ Deno.serve(async (req) => {
     }
 
     // WhatsApp / SMS → Twilio
-    const twilioResult = await sendViaTwilio({ channel, to, message });
+    const twilioResult = await sendViaTwilio(
+      { channel, to, message, contentSid, contentVariables },
+      { whatsappFrom: senderConfig.whatsappFrom, smsFrom: senderConfig.smsFrom },
+    );
 
     return new Response(
       JSON.stringify({ success: true, data: twilioResult }),

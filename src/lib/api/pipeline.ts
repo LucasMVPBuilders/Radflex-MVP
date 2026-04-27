@@ -415,6 +415,46 @@ export async function updatePipelineStage(
   }
 }
 
+export async function deletePipelineStage(stageId: string) {
+  // Block deletion of system stages (defensive — DB has a FK constraint that
+  // would already prevent dropping a stage with leads, but checking is_system
+  // here gives a friendlier error message).
+  const { data: stage, error: fetchError } = await (supabase as any)
+    .from("pipeline_stages")
+    .select("is_system, name")
+    .eq("id", stageId)
+    .maybeSingle();
+
+  if (fetchError) throw fetchError;
+  if (!stage) throw new Error("Etapa não encontrada.");
+  if (stage.is_system) {
+    throw new Error(
+      `A etapa "${stage.name}" é do sistema e não pode ser removida. Desative-a se não precisar.`,
+    );
+  }
+
+  // Refuse to delete if leads are in this stage — they'd lose their stage_id
+  // (NOT NULL FK in pipeline_leads). User must move them first.
+  const { count, error: countError } = await (supabase as any)
+    .from("pipeline_leads")
+    .select("*", { count: "exact", head: true })
+    .eq("current_stage_id", stageId);
+
+  if (countError) throw countError;
+  if ((count ?? 0) > 0) {
+    throw new Error(
+      `Existem ${count} lead${count === 1 ? "" : "s"} nesta etapa. Mova-os antes de remover.`,
+    );
+  }
+
+  const { error } = await (supabase as any)
+    .from("pipeline_stages")
+    .delete()
+    .eq("id", stageId);
+
+  if (error) throw error;
+}
+
 export async function createPipelineStage(name: string) {
   const { data: lastStage, error: lastStageError } = await (supabase as any)
     .from("pipeline_stages")

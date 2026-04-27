@@ -46,7 +46,7 @@ export async function searchLeadsByCnae(
     await delay(POLL_INTERVAL_MS);
 
     const { data: pollData, error: pollError } = await supabase.functions.invoke("search-cnae", {
-      body: { mode: "poll", apifyRunId, datasetId, cnae, estado, page, batch, requiredFields },
+      body: { mode: "poll", apifyRunId, datasetId, cnae, estado, page, batch, estados, requiredFields },
     });
 
     if (pollError) {

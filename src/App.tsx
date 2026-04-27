@@ -1,13 +1,17 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Index from "./pages/Index.tsx";
-import Disparos from "./pages/Disparos.tsx";
+import DisparosLayout from "./pages/disparos/DisparosLayout.tsx";
+import DisparosNovo from "./pages/disparos/Novo.tsx";
+import DisparosHistorico from "./pages/disparos/Historico.tsx";
+import DisparosTemplates from "./pages/disparos/Templates.tsx";
 import Login from "./pages/Login.tsx";
 import Pipeline from "./pages/Pipeline.tsx";
 import SDRConfig from "./pages/SDRConfig.tsx";
+import Configuracoes from "./pages/Configuracoes.tsx";
 import TestChat from "./pages/TestChat.tsx";
 import ResetPassword from "./pages/ResetPassword.tsx";
 import UpdatePassword from "./pages/UpdatePassword.tsx";
@@ -30,9 +34,15 @@ const App = () => (
           {/* Protected routes */}
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<Index />} />
-            <Route path="/disparos" element={<Disparos />} />
+            <Route path="/disparos" element={<DisparosLayout />}>
+              <Route index element={<Navigate to="novo" replace />} />
+              <Route path="novo" element={<DisparosNovo />} />
+              <Route path="historico" element={<DisparosHistorico />} />
+              <Route path="templates" element={<DisparosTemplates />} />
+            </Route>
             <Route path="/pipeline" element={<Pipeline />} />
             <Route path="/sdr" element={<SDRConfig />} />
+            <Route path="/configuracoes" element={<Configuracoes />} />
             <Route path="/test-chat" element={<TestChat />} />
           </Route>
 

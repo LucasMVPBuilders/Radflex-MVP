@@ -6,6 +6,11 @@ interface SendMessageArgs {
   to: string;
   message: string;
   subject?: string;
+  // HSM (WhatsApp pre-approved template) — only valid for channel=whatsapp.
+  // When set, Twilio renders the template by ContentSid; `message` is kept
+  // for the local preview/log but not sent as Body.
+  contentSid?: string;
+  contentVariables?: Record<string, string>;
 }
 
 interface SendMessageResult {

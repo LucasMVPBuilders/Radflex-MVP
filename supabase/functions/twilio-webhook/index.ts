@@ -1,5 +1,6 @@
+// @ts-expect-error - Deno JSR side-effect import (resolved at runtime in Supabase)
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-// @ts-ignore - Deno JSR import (resolved at runtime in Supabase)
+// @ts-expect-error - Deno JSR import (resolved at runtime in Supabase)
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 declare const Deno: {
@@ -166,6 +167,29 @@ Deno.serve(async (req) => {
   if (updateError) {
     return xmlResponse("<Response></Response>", 500);
   }
+
+  // Stamp replied_at on the most recent dispatch_logs row for this contact so
+  // the Histórico screen can show reply rates. Best-effort — don't fail the
+  // webhook if this update errors out.
+  void supabase
+    .from("dispatch_logs")
+    .select("id")
+    .eq("contact_value", from)
+    .eq("channel", "whatsapp")
+    .in("status", ["sent", "delivered", "read"])
+    .order("sent_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+    .then(async ({ data, error }: { data: { id: string } | null; error: unknown }) => {
+      if (error || !data) return;
+      await supabase
+        .from("dispatch_logs")
+        .update({
+          replied_at: new Date().toISOString(),
+          status: "replied",
+        })
+        .eq("id", data.id);
+    });
 
   // SDR: skip leads already finalized (qualified / desqualified) to prevent re-qualification.
   if (!isAlreadyFinalized) void fetch(`${SUPABASE_URL}/functions/v1/sdr-qualify`, {

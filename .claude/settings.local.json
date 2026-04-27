@@ -46,7 +46,13 @@
       "Read(//c/Users/lukas/Desktop/MVP Builders/Radiflex/Radiflex/$USERPROFILE/**)",
       "Read(//c/Users/lukas/Desktop/MVP Builders/Radiflex/Radiflex/$APPDATA/**)",
       "Read(//c/Users/lukas/Desktop/MVP Builders/Radiflex/Radiflex/$LOCALAPPDATA/**)",
-      "Read(//c/Users/lukas/Desktop/MVP Builders/Radiflex/Radiflex/**)"
+      "Read(//c/Users/lukas/Desktop/MVP Builders/Radiflex/Radiflex/**)",
+      "Bash(bun run *)",
+      "Bash(npm test *)",
+      "mcp__plugin_supabase_supabase__list_migrations",
+      "mcp__plugin_supabase_supabase__get_advisors",
+      "mcp__plugin_supabase_supabase__list_tables",
+      "WebFetch(domain:www.twilio.com)"
     ]
   }
 }

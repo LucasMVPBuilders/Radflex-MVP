@@ -38,3 +38,41 @@ export function interpolate(template: string, lead: Lead): string {
     .replace(/{{email}}/g, lead.email ?? "")
     .replace(/{{cnae}}/g, lead.cnae);
 }
+
+/**
+ * Lookup table for variable keys → lead field values, used when filling HSM
+ * Content Variables. Keep in sync with the placeholder list in TemplateEditor
+ * and Templates pages.
+ */
+const LEAD_VARIABLE_VALUES: Record<string, (lead: Lead) => string> = {
+  nomeEmpresa: (l) => l.companyName ?? "",
+  cidade: (l) => l.city ?? "",
+  estado: (l) => l.state ?? "",
+  telefone: (l) => l.phone ?? "",
+  email: (l) => l.email ?? "",
+  cnae: (l) => l.cnae ?? "",
+};
+
+export const AVAILABLE_VARIABLE_KEYS = Object.keys(LEAD_VARIABLE_VALUES);
+
+/**
+ * Builds the ContentVariables payload for Twilio HSM dispatches.
+ * Twilio expects an object keyed by 1-based index:
+ *   { "1": "Acme Inc.", "2": "São Paulo" }
+ *
+ * variable_keys on the template stores which lead field each {{N}} maps to,
+ * e.g. ["nomeEmpresa", "cidade"] → 1=companyName, 2=city.
+ */
+export function buildContentVariables(
+  variableKeys: string[] | null | undefined,
+  lead: Lead,
+): Record<string, string> {
+  if (!variableKeys || variableKeys.length === 0) return {};
+
+  const result: Record<string, string> = {};
+  variableKeys.forEach((key, index) => {
+    const resolver = LEAD_VARIABLE_VALUES[key];
+    result[String(index + 1)] = resolver ? resolver(lead) : "";
+  });
+  return result;
+}
