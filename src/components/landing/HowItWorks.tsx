@@ -40,11 +40,13 @@ export const HowItWorks = () => (
             key={num}
             className="relative rounded-2xl bg-card border border-border p-7 shadow-sm hover:shadow-md transition-shadow"
           >
-            <span className="font-mono-data text-xs text-primary font-bold tracking-wider">
-              PASSO {num}
-            </span>
-            <div className="mt-4 inline-flex rounded-xl gradient-primary p-3">
-              <Icon className="h-6 w-6 text-white" />
+            <div className="flex items-center gap-3">
+              <div className="inline-flex rounded-xl gradient-primary p-2.5">
+                <Icon className="h-5 w-5 text-white" />
+              </div>
+              <span className="font-mono-data text-xs text-primary font-bold tracking-wider">
+                PASSO {num}
+              </span>
             </div>
             <h3 className="mt-5 text-xl font-bold text-foreground">{title}</h3>
             <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{desc}</p>

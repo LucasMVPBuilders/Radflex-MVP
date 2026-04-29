@@ -4,29 +4,35 @@
 
 @layer base {
   :root {
-    --background: 251 50% 99%;
-    --foreground: 240 28% 14%;
+    /* Branding RadFlex (manual MarketMED, Nov/2024)
+       Persian Indigo  #381F6C  HSL 259 55% 27%   — Elegância | Notoriedade
+       Persian Deep    #280B54  HSL 264 77% 19%   — Hero / dark surfaces
+       Tropical Indigo #918BC3  HSL 246 32% 65%   — Concentração | Cuidado
+    */
+
+    --background: 0 0% 100%;
+    --foreground: 259 55% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 240 28% 14%;
+    --card-foreground: 259 55% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 240 28% 14%;
+    --popover-foreground: 259 55% 12%;
 
-    /* Roxo Principal #5B2ECC */
-    --primary: 257 63% 49%;
+    /* Persian Indigo */
+    --primary: 259 55% 27%;
     --primary-foreground: 0 0% 100%;
 
-    /* Lavanda claro #EDE9FE */
-    --secondary: 251 91% 96%;
-    --secondary-foreground: 257 63% 40%;
+    /* Tropical Indigo */
+    --secondary: 246 32% 65%;
+    --secondary-foreground: 259 55% 15%;
 
-    --muted: 251 50% 96%;
-    --muted-foreground: 240 16% 47%;
+    --muted: 246 25% 96%;
+    --muted-foreground: 246 18% 45%;
 
-    /* Lavanda como accent */
-    --accent: 251 91% 96%;
-    --accent-foreground: 257 63% 40%;
+    /* Lavender mist (Tropical Indigo @ 96% L) */
+    --accent: 246 32% 96%;
+    --accent-foreground: 259 55% 27%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
@@ -41,26 +47,26 @@
     --success: 160 84% 39%;
     --success-foreground: 0 0% 100%;
 
-    /* Escuro #1A1A2E */
-    --navy: 240 28% 14%;
-    --navy-foreground: 251 91% 96%;
+    /* Persian Indigo Deep — superfícies escuras (footer, hero) */
+    --navy: 264 77% 19%;
+    --navy-foreground: 246 32% 92%;
 
-    --border: 251 40% 88%;
-    --input: 251 40% 88%;
-    --ring: 257 63% 49%;
+    --border: 246 25% 88%;
+    --input: 246 25% 88%;
+    --ring: 259 55% 27%;
 
     --radius: 0.5rem;
 
-    /* Sidebar: fundo escuro #1A1A2E */
-    --sidebar-background: 240 28% 14%;
-    --sidebar-foreground: 251 60% 93%;
-    --sidebar-primary: 257 63% 49%;
+    /* Sidebar: Persian Indigo Deep */
+    --sidebar-background: 264 77% 16%;
+    --sidebar-foreground: 246 32% 92%;
+    --sidebar-primary: 259 55% 27%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 28% 20%;
-    --sidebar-accent-foreground: 251 60% 93%;
-    --sidebar-border: 240 28% 22%;
-    --sidebar-ring: 257 63% 49%;
-    --sidebar-muted: 251 20% 55%;
+    --sidebar-accent: 264 55% 24%;
+    --sidebar-accent-foreground: 246 32% 92%;
+    --sidebar-border: 264 40% 26%;
+    --sidebar-ring: 259 55% 27%;
+    --sidebar-muted: 246 20% 65%;
   }
 }
 
@@ -80,25 +86,25 @@
     font-family: 'JetBrains Mono', monospace;
   }
 
-  /* ── Gradientes da marca RadiFlex ───────────── */
+  /* ── Gradientes da marca RadFlex (Persian + Tropical Indigo) ────────── */
 
-  /* Gradiente Principal: Roxo vibrante */
+  /* Principal: Persian Indigo → variação ligeiramente mais clara */
   .gradient-primary {
-    background: linear-gradient(135deg, #5B2ECC 0%, #7B52E8 100%);
+    background: linear-gradient(135deg, #381F6C 0%, #4D2D8E 100%);
   }
 
-  /* Gradiente Escuro: Deep purple */
+  /* Escuro: Persian Deep → Persian Indigo (hero / dark sections) */
   .gradient-dark {
-    background: linear-gradient(135deg, #3D1F99 0%, #5B2ECC 100%);
+    background: linear-gradient(135deg, #280B54 0%, #381F6C 100%);
   }
 
-  /* Gradiente Suave: Lilás → Roxo Claro */
+  /* Suave: Persian → Tropical Indigo (transições / cards destacados) */
   .gradient-soft {
-    background: linear-gradient(135deg, #7B52E8 0%, #A78BFA 100%);
+    background: linear-gradient(135deg, #4D2D8E 0%, #918BC3 100%);
   }
 
-  /* Gradiente Claro: Lavanda → Branco */
+  /* Claro: Lavender mist → Branco */
   .gradient-light {
-    background: linear-gradient(135deg, #EDE9FE 0%, #FFFFFF 100%);
+    background: linear-gradient(135deg, #F4F3FA 0%, #FFFFFF 100%);
   }
 }

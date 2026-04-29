@@ -52,7 +52,21 @@
       "mcp__plugin_supabase_supabase__list_migrations",
       "mcp__plugin_supabase_supabase__get_advisors",
       "mcp__plugin_supabase_supabase__list_tables",
-      "WebFetch(domain:www.twilio.com)"
+      "WebFetch(domain:www.twilio.com)",
+      "PowerShell(Get-Command *)",
+      "Bash(mkdir -p \"/tmp/radflex-pdf-extract\")",
+      "Read(//tmp/**)",
+      "PowerShell(python -c \"import pypdf; print\\(pypdf.__version__\\)\" 2>&1; python -c \"import fitz; print\\(fitz.__version__\\)\" 2>&1; python -c \"import pdfplumber; print\\(pdfplumber.__version__\\)\" 2>&1)",
+      "PowerShell(python -m pip install --quiet pypdf pymupdf 2>&1 | Select-Object -Last 5)",
+      "PowerShell(python \"C:\\\\Users\\\\lukas\\\\Desktop\\\\MVP Builders\\\\Radiflex\\\\Radiflex\\\\scripts\\\\extract_pdf.py\" \"C:\\\\Users\\\\lukas\\\\Desktop\\\\MVP Builders\\\\Radiflex\\\\Radiflex\\\\Apresentação Radflex.pdf\" \"C:\\\\Users\\\\lukas\\\\Desktop\\\\MVP Builders\\\\Radiflex\\\\Radiflex\\\\scripts\\\\pdf_out_radflex\")",
+      "PowerShell(python \"C:\\\\Users\\\\lukas\\\\Desktop\\\\MVP Builders\\\\Radiflex\\\\Radiflex\\\\scripts\\\\extract_pdf.py\" \"C:\\\\Users\\\\lukas\\\\Desktop\\\\MVP Builders\\\\Radiflex\\\\Radiflex\\\\24339-Apresentacao-v1.pdf\" \"C:\\\\Users\\\\lukas\\\\Desktop\\\\MVP Builders\\\\Radiflex\\\\Radiflex\\\\scripts\\\\pdf_out_v1\")",
+      "PowerShell(python -m pip install --quiet Pillow 2>&1 | Select-Object -Last 2; python \"C:\\\\Users\\\\lukas\\\\Desktop\\\\MVP Builders\\\\Radiflex\\\\Radiflex\\\\scripts\\\\sample_colors.py\")",
+      "PowerShell(python \"C:\\\\Users\\\\lukas\\\\Desktop\\\\MVP Builders\\\\Radiflex\\\\Radiflex\\\\scripts\\\\sample_hero.py\")",
+      "Bash(npx eslint *)",
+      "Bash(kill %1)",
+      "PowerShell(python \"C:\\\\Users\\\\lukas\\\\Desktop\\\\MVP Builders\\\\Radiflex\\\\Radiflex\\\\scripts\\\\render_manual_hires.py\")",
+      "PowerShell(python \"C:\\\\Users\\\\lukas\\\\Desktop\\\\MVP Builders\\\\Radiflex\\\\Radiflex\\\\scripts\\\\extract_logo.py\")",
+      "PowerShell(python -m pip install --quiet numpy 2>&1 | Select-Object -Last 2; python \"C:\\\\Users\\\\lukas\\\\Desktop\\\\MVP Builders\\\\Radiflex\\\\Radiflex\\\\scripts\\\\extract_logo.py\")"
     ]
   }
 }

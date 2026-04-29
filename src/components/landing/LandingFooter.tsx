@@ -62,7 +62,11 @@ export const LandingFooter = () => (
       <div className="mt-12 pt-6 border-t border-navy-foreground/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 text-xs text-navy-foreground/60">
         <p>© {new Date().getFullYear()} RadFlex Diagnósticos. Todos os direitos reservados.</p>
         <p>
-          Diretor Técnico Médico: {CONTACT.responsavelTecnico.nome} · {CONTACT.responsavelTecnico.crm}
+          Diretor Técnico Médico: {CONTACT.responsavelTecnico.nome}
+          {" · "}
+          {CONTACT.responsavelTecnico.crm}
+          {" | "}
+          {CONTACT.responsavelTecnico.rqe}
         </p>
       </div>
     </div>

@@ -8,7 +8,7 @@ export function createDefaultPipelineStages(): PipelineStageSeed[] {
       key: "dispatch_started",
       name: "Disparo iniciado",
       position: 0,
-      color: "#5B2ECC",
+      color: "#381F6C",
       isSystem: true,
     },
     {
