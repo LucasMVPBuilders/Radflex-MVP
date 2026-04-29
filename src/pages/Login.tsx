@@ -17,7 +17,7 @@ const Login = () => {
   // Redirect if already authenticated
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate("/", { replace: true });
+      if (data.session) navigate("/dashboard", { replace: true });
     });
   }, [navigate]);
 
@@ -30,7 +30,7 @@ const Login = () => {
     if (error) {
       setError("E-mail ou senha inválidos.");
     } else {
-      navigate("/", { replace: true });
+      navigate("/dashboard", { replace: true });
     }
   };
 

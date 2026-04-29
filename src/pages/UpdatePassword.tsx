@@ -57,7 +57,7 @@ const UpdatePassword = () => {
     if (error) {
       setError(error.message);
     } else {
-      navigate("/", { replace: true });
+      navigate("/dashboard", { replace: true });
     }
   };
 

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { NavLink } from "@/components/NavLink";
+import { RadFlexLogo } from "@/components/RadFlexLogo";
 
 interface CnaeItem {
   code: string;
@@ -49,24 +50,14 @@ export const AppSidebar = ({
     <aside className="w-64 bg-navy text-navy-foreground flex flex-col h-screen fixed left-0 top-0 z-30">
       {/* Logo */}
       <div className="px-5 py-5 border-b border-sidebar-border">
-        <div
-          className="inline-flex items-center px-3 py-2 rounded-xl"
-          style={{ background: "#5B2ECC" }}
-        >
-          <span
-            className="text-white tracking-tight"
-            style={{ fontWeight: 800, fontSize: "16px", letterSpacing: "-0.5px" }}
-          >
-            ⌘ radflex.
-          </span>
-        </div>
+        <RadFlexLogo variant="dark" />
         <p className="text-xs text-sidebar-muted mt-2">Prospecção por CNAE</p>
       </div>
 
       {/* Navigation */}
       <div className="px-3 py-3 border-b border-sidebar-border space-y-1">
         <NavLink
-          to="/"
+          to="/dashboard"
           end
           className="flex items-center gap-2 px-3 py-2 rounded text-sm text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
           activeClassName="bg-sidebar-primary text-sidebar-primary-foreground"

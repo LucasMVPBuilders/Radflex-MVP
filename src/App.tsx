@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import Landing from "./pages/Landing.tsx";
 import Index from "./pages/Index.tsx";
 import DisparosLayout from "./pages/disparos/DisparosLayout.tsx";
 import DisparosNovo from "./pages/disparos/Novo.tsx";
@@ -27,13 +28,17 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
+          {/* Public landing page */}
+          <Route path="/" element={<Landing />} />
+
           {/* Public auth routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/update-password" element={<UpdatePassword />} />
-          {/* Protected routes */}
+
+          {/* Protected routes (internal team only) */}
           <Route element={<ProtectedRoute />}>
-            <Route path="/" element={<Index />} />
+            <Route path="/dashboard" element={<Index />} />
             <Route path="/disparos" element={<DisparosLayout />}>
               <Route index element={<Navigate to="novo" replace />} />
               <Route path="novo" element={<DisparosNovo />} />
