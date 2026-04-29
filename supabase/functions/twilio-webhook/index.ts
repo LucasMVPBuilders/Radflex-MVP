@@ -71,13 +71,18 @@ Deno.serve(async (req) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  // Try exact match first, then fallback to suffix match for format variations
+  // Try exact match first, then fallback to suffix match for format variations.
+  // If neither hits, create a brand new pipeline_lead in `inbound_organic` so
+  // organic inbound (wa.me link, ad clicks, leads outside our dispatch list)
+  // doesn't get silently dropped.
   let pipelineLead: { id: string; current_stage_id: string; unread_count: number } | null = null;
+  let wasJustCreated = false;
 
   const [
     { data: exactMatch, error: exactError },
     { data: repliedStage, error: repliedStageError },
     { data: finalStages },
+    { data: organicStage },
   ] = await Promise.all([
     supabase
       .from("pipeline_leads")
@@ -94,10 +99,20 @@ Deno.serve(async (req) => {
       .from("pipeline_stages")
       .select("id")
       .in("key", ["qualified", "desqualified"]),
+    supabase
+      .from("pipeline_stages")
+      .select("id")
+      .eq("key", "inbound_organic")
+      .maybeSingle(),
   ]);
 
   if (exactError) {
     console.error("Error querying pipeline_leads", exactError);
+    return xmlResponse("<Response></Response>", 500);
+  }
+
+  if (repliedStageError) {
+    console.error("Error querying replied stage", repliedStageError);
     return xmlResponse("<Response></Response>", 500);
   }
 
@@ -115,9 +130,59 @@ Deno.serve(async (req) => {
     pipelineLead = suffixMatch;
   }
 
-  if (repliedStageError || !pipelineLead) {
-    console.error("No pipeline_lead found", { from, repliedStageError });
-    return xmlResponse("<Response></Response>");
+  // Auto-create lead for organic inbound when no match exists.
+  // Guard: skip very short bodies (< 4 chars) to reduce noise from bots/probes
+  // — legitimate first messages are almost always longer ("Olá", "Quero saber..."
+  // etc. are 3+ chars; we use 4 to filter "oi", single emojis, and similar).
+  if (!pipelineLead) {
+    if (body.length < 4) {
+      console.log("Inbound from unknown number with short body, skipping auto-create", {
+        from,
+        bodyLength: body.length,
+      });
+      return xmlResponse("<Response></Response>");
+    }
+
+    if (!organicStage) {
+      console.error("inbound_organic stage not found — migration not applied?", { from });
+      return xmlResponse("<Response></Response>");
+    }
+
+    const profileName = params.get("ProfileName")?.trim() || null;
+    const displayName = profileName
+      ? `${profileName} (WhatsApp)`
+      : `Lead WhatsApp ${from}`;
+
+    const { data: newLead, error: createError } = await supabase
+      .from("pipeline_leads")
+      .insert({
+        lead_id: `inbound:${from}:${Date.now()}`,
+        current_stage_id: organicStage.id,
+        primary_channel: "whatsapp",
+        contact_phone: from,
+        contact_email: null,
+        unread_count: 0,
+        lead_snapshot: {
+          companyName: displayName,
+          phone: from,
+          email: "",
+          city: "",
+          state: "",
+          cnae: "",
+          source: "inbound_organic",
+        },
+      })
+      .select("id, current_stage_id, unread_count")
+      .single();
+
+    if (createError) {
+      console.error("Failed to create inbound_organic lead", { from, error: createError });
+      return xmlResponse("<Response></Response>", 500);
+    }
+
+    pipelineLead = newLead;
+    wasJustCreated = true;
+    console.log("Auto-created inbound_organic lead", { from, leadId: newLead.id });
   }
 
   const { error: messageError } = await supabase
@@ -155,7 +220,14 @@ Deno.serve(async (req) => {
   const finalStageIds = new Set((finalStages ?? []).map((s: any) => s.id));
   const isAlreadyFinalized = finalStageIds.has(pipelineLead.current_stage_id);
 
-  if (repliedStage && !isAlreadyFinalized && pipelineLead.current_stage_id !== repliedStage.id) {
+  // Don't auto-move to "replied" if we just created the lead (it stays in
+  // inbound_organic until SDR or human moves it).
+  if (
+    !wasJustCreated &&
+    repliedStage &&
+    !isAlreadyFinalized &&
+    pipelineLead.current_stage_id !== repliedStage.id
+  ) {
     updatePayload.current_stage_id = repliedStage.id;
   }
 

@@ -132,7 +132,7 @@ function classifyError(errorMsg: string | null): {
     "63015": "Template não aprovado. Crie e aprove o template no Twilio antes de reenviar.",
     "63007": "Número de destino não tem WhatsApp. Reenvio não vai resolver.",
     "63112":
-      "Meta DESATIVOU sua conta WhatsApp Business. Reenvio é impossível até reativação. Acesse business.facebook.com → Security Center pra ver o motivo (geralmente spam ou violação de política) e abrir apelação.",
+      "Meta desativou a WhatsApp Business Account conectada ao seu sender Twilio. Causas comuns: violação de política/spam, verificação de business pendente, ou re-registro de número com 2FA ativo. Verifique em business.facebook.com → Account Quality / Security Center e em console.twilio.com → Messaging → Senders → WhatsApp Senders. Reenvio falha até reativação.",
     "63017": "Sender não está associado à conta WhatsApp. Reconfigure no Twilio Console.",
     "63021": "Canal desabilitado pelo sender. Verifique o status do sender no Twilio.",
     "63036": "Template HSM não aprovado pelo WhatsApp. Submeta o template e aguarde aprovação.",
